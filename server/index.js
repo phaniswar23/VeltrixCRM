@@ -29,8 +29,18 @@ app.use(cors());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
+// Ensure DB is connected on serverless request
+app.use(async (req, res, next) => {
+  try {
+    await connectDB();
+  } catch (err) {
+    console.error('DB connect error:', err.message);
+  }
+  next();
+});
+
 // Health Check
-app.get('/api/health', (req, res) => {
+app.get(['/api/health', '/health'], (req, res) => {
   res.json({
     status: 'online',
     app: 'VeltrixCRM MERN Platform',
@@ -38,15 +48,30 @@ app.get('/api/health', (req, res) => {
   });
 });
 
-// API Routes
+// API Routes (supports both /api/* and /* if rewritten by Vercel)
 app.use('/api/auth', authRoutes);
+app.use('/auth', authRoutes);
+
 app.use('/api/customers', customerRoutes);
+app.use('/customers', customerRoutes);
+
 app.use('/api/tasks', taskRoutes);
+app.use('/tasks', taskRoutes);
+
 app.use('/api/staff', staffRoutes);
+app.use('/staff', staffRoutes);
+
 app.use('/api/analytics', analyticsRoutes);
+app.use('/analytics', analyticsRoutes);
+
 app.use('/api/notifications', notificationRoutes);
+app.use('/notifications', notificationRoutes);
+
 app.use('/api/ai', aiRoutes);
+app.use('/ai', aiRoutes);
+
 app.use('/api/contact', contactRoutes);
+app.use('/contact', contactRoutes);
 
 // Serve static assets in production if client build exists
 const clientDist = path.join(__dirname, '../dist');
