@@ -49,7 +49,7 @@ app.use('/api/ai', aiRoutes);
 app.use('/api/contact', contactRoutes);
 
 // Serve static assets in production if client build exists
-const clientDist = path.join(__dirname, '../client/dist');
+const clientDist = path.join(__dirname, '../dist');
 app.use(express.static(clientDist));
 
 app.get('*', (req, res, next) => {
