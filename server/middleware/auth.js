@@ -18,7 +18,8 @@ export const protect = async (req, res, next) => {
     if (!user) {
       return res.status(401).json({ message: 'User not found for this token' });
     }
-    // Update last activity
+    // Update activity and online status
+    user.is_online = true;
     user.last_activity = new Date();
     await user.save({ validateBeforeSave: false });
 

@@ -19,6 +19,7 @@ import Sidebar from './components/Sidebar.jsx';
 import Topbar from './components/Topbar.jsx';
 import AIChatWidget from './components/AIChatWidget.jsx';
 import ProtectedRoute from './components/ProtectedRoute.jsx';
+import ScrollToTop from './components/ScrollToTop.jsx';
 
 // Layout wrapper for authenticated CRM dashboard
 const DashboardLayout = () => {
@@ -50,7 +51,9 @@ const App = () => {
   const defaultDashboard = user?.role === 'admin' ? '/admin/dashboard' : '/staff/dashboard';
 
   return (
-    <Routes>
+    <>
+      <ScrollToTop />
+      <Routes>
       {/* Public Pages */}
       <Route path="/" element={<HomePage />} />
       <Route path="/about" element={<Navigate to="/" replace />} />
@@ -101,6 +104,7 @@ const App = () => {
       {/* Catch-all */}
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
+    </>
   );
 };
 

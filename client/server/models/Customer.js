@@ -33,5 +33,9 @@ const customerSchema = new mongoose.Schema(
   }
 );
 
+customerSchema.index({ assigned_to: 1 });
+customerSchema.index({ status: 1 });
+customerSchema.index({ createdAt: -1 });
+
 const Customer = mongoose.model('Customer', customerSchema);
 export default Customer;

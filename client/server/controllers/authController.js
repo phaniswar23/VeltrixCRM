@@ -74,6 +74,7 @@ export const login = async (req, res) => {
       return res.status(401).json({ message: 'Invalid email or password' });
     }
 
+    user.is_online = true;
     user.last_activity = new Date();
     await user.save({ validateBeforeSave: false });
 
@@ -105,7 +106,26 @@ export const login = async (req, res) => {
 export const getMe = async (req, res) => {
   try {
     const user = await User.findById(req.user._id).select('-password');
+    if (user) {
+      user.is_online = true;
+      user.last_activity = new Date();
+      await user.save({ validateBeforeSave: false });
+    }
     return res.json({ user });
+  } catch (error) {
+    return res.status(500).json({ message: error.message });
+  }
+};
+
+export const heartbeat = async (req, res) => {
+  try {
+    if (req.user) {
+      await User.findByIdAndUpdate(req.user._id, {
+        is_online: true,
+        last_activity: new Date(),
+      });
+    }
+    return res.json({ success: true, timestamp: Date.now() });
   } catch (error) {
     return res.status(500).json({ message: error.message });
   }
@@ -114,6 +134,10 @@ export const getMe = async (req, res) => {
 export const logout = async (req, res) => {
   try {
     if (req.user) {
+      await User.findByIdAndUpdate(req.user._id, {
+        is_online: false,
+        last_activity: new Date(0),
+      });
       await ActivityLog.create({
         user_id: req.user._id,
         action: 'User Logged Out',

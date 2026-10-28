@@ -63,9 +63,19 @@ const Navbar = () => {
           </button>
           <Link
             to="/pricing"
-            className="text-xs font-bold uppercase tracking-widest text-[#706F6C] hover:text-[#2D3A2D] transition-colors"
+            onClick={() => {
+              window.scrollTo({ top: 0, left: 0, behavior: 'smooth' });
+            }}
+            className={`text-xs font-bold uppercase tracking-widest transition-all relative py-1.5 ${
+              location.pathname === '/pricing'
+                ? 'text-[#2D3A2D] font-extrabold'
+                : 'text-[#706F6C] hover:text-[#2D3A2D]'
+            }`}
           >
-            {t('pricing')}
+            <span>{t('pricing')}</span>
+            {location.pathname === '/pricing' && (
+              <span className="absolute bottom-0 left-0 right-0 h-0.5 bg-[#2D3A2D] rounded-full animate-fadeIn" />
+            )}
           </Link>
         </div>
 
@@ -163,8 +173,15 @@ const Navbar = () => {
           </button>
           <Link
             to="/pricing"
-            onClick={() => setMobileMenuOpen(false)}
-            className="text-lg font-bold uppercase tracking-widest text-[#1A1A1A]"
+            onClick={() => {
+              window.scrollTo({ top: 0, left: 0, behavior: 'instant' });
+              setMobileMenuOpen(false);
+            }}
+            className={`text-lg font-bold uppercase tracking-widest ${
+              location.pathname === '/pricing'
+                ? 'text-[#2D3A2D] underline decoration-2 underline-offset-8'
+                : 'text-[#1A1A1A]'
+            }`}
           >
             {t('pricing')}
           </Link>

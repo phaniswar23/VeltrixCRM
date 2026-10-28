@@ -1,10 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { useLanguage } from '../context/LanguageContext.jsx';
+import { useAuth } from '../context/AuthContext.jsx';
 import api from '../services/api.js';
-import { X } from 'lucide-react';
+import { X, ShieldCheck } from 'lucide-react';
 
 const CustomerFormModal = ({ isOpen, onClose, customerToEdit, staffList, onSaved }) => {
   const { t } = useLanguage();
+  const { user, isAdmin } = useAuth();
+
   const [formData, setFormData] = useState({
     name: '',
     email: '',
@@ -22,7 +25,7 @@ const CustomerFormModal = ({ isOpen, onClose, customerToEdit, staffList, onSaved
         email: customerToEdit.email || '',
         phone: customerToEdit.phone || '',
         status: customerToEdit.status || 'lead',
-        assigned_to: customerToEdit.assigned_to?._id || customerToEdit.assigned_to || '',
+        assigned_to: customerToEdit.assigned_to?._id || customerToEdit.assigned_to || (isAdmin ? '' : user?._id || ''),
       });
     } else {
       setFormData({
@@ -30,11 +33,11 @@ const CustomerFormModal = ({ isOpen, onClose, customerToEdit, staffList, onSaved
         email: '',
         phone: '',
         status: 'lead',
-        assigned_to: '',
+        assigned_to: isAdmin ? '' : (user?._id || ''),
       });
     }
     setError('');
-  }, [customerToEdit, isOpen]);
+  }, [customerToEdit, isOpen, isAdmin, user?._id]);
 
   if (!isOpen) return null;
 
@@ -152,18 +155,35 @@ const CustomerFormModal = ({ isOpen, onClose, customerToEdit, staffList, onSaved
               <label className="block text-[10px] font-bold text-[#706F6C] uppercase tracking-widest mb-2">
                 {t('assigned_to')}
               </label>
-              <select
-                value={formData.assigned_to}
-                onChange={(e) => setFormData({ ...formData, assigned_to: e.target.value })}
-                className="w-full bg-[#F5F3EF] border border-[#E5E2DC] rounded-xl px-4 py-3 text-xs font-medium focus:border-[#2D3A2D] outline-none transition cursor-pointer"
-              >
-                <option value="">{t('unassigned')}</option>
-                {staffList?.map((s) => (
-                  <option key={s._id} value={s._id}>
-                    {s.name}
-                  </option>
-                ))}
-              </select>
+              {isAdmin ? (
+                <select
+                  value={formData.assigned_to}
+                  onChange={(e) => setFormData({ ...formData, assigned_to: e.target.value })}
+                  className="w-full bg-[#F5F3EF] border border-[#E5E2DC] rounded-xl px-4 py-3 text-xs font-medium focus:border-[#2D3A2D] outline-none transition cursor-pointer"
+                >
+                  <option value="">{t('unassigned')}</option>
+                  {staffList?.map((s) => (
+                    <option key={s._id} value={s._id}>
+                      {s.name} ({s.email})
+                    </option>
+                  ))}
+                </select>
+              ) : (
+                <div>
+                  <div className="w-full bg-[#F5F3EF] border border-[#E5E2DC] rounded-xl px-4 py-2.5 text-xs font-semibold text-[#2D3A2D] flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <span className="w-2 h-2 rounded-full bg-emerald-500"></span>
+                      <span>{user?.name || 'You'} (Self)</span>
+                    </div>
+                    <span className="text-[9px] font-bold uppercase tracking-wider px-2 py-0.5 rounded bg-[#2D3A2D]/10 text-[#2D3A2D]">
+                      Your Portfolio
+                    </span>
+                  </div>
+                  <p className="text-[9px] text-[#706F6C] mt-1.5">
+                    Customers created by staff are directly assigned to your portfolio.
+                  </p>
+                </div>
+              )}
             </div>
           </div>
 

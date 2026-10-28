@@ -1,8 +1,38 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext.jsx';
 import { useLanguage } from '../context/LanguageContext.jsx';
-import { ArrowRight, Sparkles, TrendingUp, Users } from 'lucide-react';
+import { ArrowRight, Sparkles, TrendingUp, Users, ChevronDown } from 'lucide-react';
+
+const DEMO_STAFF_PROFILES = [
+  {
+    name: 'Marcus Vance',
+    email: 'staff@veltrix.com',
+    role: 'Operations Lead',
+    badge: 'Operational Pipeline',
+    initials: 'MV',
+    color: 'bg-emerald-100 text-emerald-800 border-emerald-200',
+    stats: '2 Customers • 2 Tasks',
+  },
+  {
+    name: 'Sarah Jenkins',
+    email: 'sarah@veltrix.com',
+    role: 'Client Success Manager',
+    badge: 'Client Success',
+    initials: 'SJ',
+    color: 'bg-blue-100 text-blue-800 border-blue-200',
+    stats: '2 Customers • 1 Task',
+  },
+  {
+    name: 'David Chen',
+    email: 'david@veltrix.com',
+    role: 'Enterprise Solutions',
+    badge: 'Enterprise Solutions',
+    initials: 'DC',
+    color: 'bg-purple-100 text-purple-800 border-purple-200',
+    stats: '1 Customer • 1 Task',
+  },
+];
 
 const LoginPage = () => {
   const { login } = useAuth();
@@ -14,8 +44,32 @@ const LoginPage = () => {
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [showStaffDropdown, setShowStaffDropdown] = useState(false);
+  const [selectedStaffProfile, setSelectedStaffProfile] = useState(DEMO_STAFF_PROFILES[0]);
+  const dropdownRef = useRef(null);
 
   const from = location.state?.from?.pathname;
+
+  // Close dropdown on outside click
+  useEffect(() => {
+    const handleOutsideClick = (e) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(e.target)) {
+        setShowStaffDropdown(false);
+      }
+    };
+    document.addEventListener('mousedown', handleOutsideClick);
+    return () => document.removeEventListener('mousedown', handleOutsideClick);
+  }, []);
+
+  const resolveErrorMessage = (err, defaultMessage) => {
+    if (err.response?.data?.message) {
+      return err.response.data.message;
+    }
+    if (!err.response || err.code === 'ERR_NETWORK' || err.response?.status >= 500) {
+      return 'Cannot reach the backend server. Please verify the backend is running on port 5050.';
+    }
+    return defaultMessage;
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -31,25 +85,32 @@ const LoginPage = () => {
       const target = from || (user.role === 'admin' ? '/admin/dashboard' : '/staff/dashboard');
       navigate(target, { replace: true });
     } catch (err) {
-      setError(err.response?.data?.message || 'Invalid credentials. Please try again.');
+      setError(resolveErrorMessage(err, 'Invalid credentials. Please try again.'));
     } finally {
       setLoading(false);
     }
   };
 
-  const handleQuickDemoLogin = async (role) => {
-    const demoEmail = role === 'admin' ? 'admin@veltrix.com' : 'staff@veltrix.com';
+  const handleQuickDemoLogin = async (target) => {
+    let demoEmail = 'staff@veltrix.com';
+    if (typeof target === 'string') {
+      demoEmail = target === 'admin' ? 'admin@veltrix.com' : 'staff@veltrix.com';
+    } else if (target && target.email) {
+      demoEmail = target.email;
+    }
+
     setEmail(demoEmail);
     setPassword('password123');
     setLoading(true);
     setError('');
+    setShowStaffDropdown(false);
 
     try {
       const user = await login(demoEmail, 'password123');
-      const target = user.role === 'admin' ? '/admin/dashboard' : '/staff/dashboard';
-      navigate(target, { replace: true });
+      const targetRoute = user.role === 'admin' ? '/admin/dashboard' : '/staff/dashboard';
+      navigate(targetRoute, { replace: true });
     } catch (err) {
-      setError(err.response?.data?.message || 'Demo credentials failed. Did you run the seed script?');
+      setError(resolveErrorMessage(err, 'Demo credentials failed. Did you run the seed script?'));
     } finally {
       setLoading(false);
     }
@@ -134,25 +195,114 @@ const LoginPage = () => {
           )}
 
           {/* Quick Demo Logins Banner */}
-          <div className="mb-6 p-4 rounded-2xl bg-[#F5F3EF] border border-[#E5E2DC]">
-            <p className="text-[10px] font-bold uppercase tracking-wider text-[#706F6C] mb-2.5">
-              1-Click Demo Accounts:
-            </p>
+          <div className="mb-6 p-4 rounded-2xl bg-[#F5F3EF] border border-[#E5E2DC] relative">
+            <div className="flex items-center justify-between mb-2.5">
+              <p className="text-[10px] font-bold uppercase tracking-wider text-[#706F6C]">
+                1-Click Demo Accounts:
+              </p>
+              <span className="text-[9px] font-bold uppercase tracking-wider text-[#2D3A2D] bg-[#2D3A2D]/10 px-2 py-0.5 rounded-md">
+                Fast Explore
+              </span>
+            </div>
+
             <div className="flex gap-2">
               <button
                 type="button"
                 onClick={() => handleQuickDemoLogin('admin')}
-                className="flex-1 py-2 px-3 rounded-xl bg-white border border-[#E5E2DC] text-[10px] font-bold uppercase tracking-wider text-[#2D3A2D] hover:border-[#2D3A2D] transition shadow-sm"
+                disabled={loading}
+                className="flex-1 py-2.5 px-3 rounded-xl bg-white border border-[#E5E2DC] text-[10px] font-bold uppercase tracking-wider text-[#2D3A2D] hover:border-[#2D3A2D] hover:bg-[#FAF9F5] transition shadow-sm flex items-center justify-center gap-1.5"
               >
-                Demo Admin
+                <span>Demo Admin</span>
               </button>
-              <button
-                type="button"
-                onClick={() => handleQuickDemoLogin('staff')}
-                className="flex-1 py-2 px-3 rounded-xl bg-white border border-[#E5E2DC] text-[10px] font-bold uppercase tracking-wider text-[#706F6C] hover:border-[#2D3A2D] hover:text-[#2D3A2D] transition shadow-sm"
-              >
-                Demo Staff
-              </button>
+
+              <div className="flex-1 relative" ref={dropdownRef}>
+                <div className="flex rounded-xl shadow-sm border border-[#E5E2DC] bg-white overflow-hidden hover:border-[#2D3A2D] transition">
+                  <button
+                    type="button"
+                    onClick={() => handleQuickDemoLogin(selectedStaffProfile)}
+                    disabled={loading}
+                    className="flex-1 py-2.5 px-2.5 text-[10px] font-bold uppercase tracking-wider text-[#2D3A2D] hover:bg-[#FAF9F5] transition truncate text-left flex items-center gap-1.5"
+                    title={`Log in as ${selectedStaffProfile.name}`}
+                  >
+                    <span className="w-2 h-2 rounded-full bg-emerald-500 shrink-0"></span>
+                    <span className="truncate">Staff: {selectedStaffProfile.name.split(' ')[0]}</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setShowStaffDropdown((prev) => !prev)}
+                    className="px-2.5 py-2.5 bg-[#FAF9F5] border-l border-[#E5E2DC] hover:bg-[#F0EDE6] transition text-[#706F6C] hover:text-[#2D3A2D] flex items-center justify-center"
+                    title="Click to explore and select from various staff accounts"
+                  >
+                    <ChevronDown
+                      className={`w-3.5 h-3.5 transition-transform duration-200 ${
+                        showStaffDropdown ? 'rotate-180' : ''
+                      }`}
+                    />
+                  </button>
+                </div>
+
+                {/* Dropdown Menu for Exploring Various Staff */}
+                {showStaffDropdown && (
+                  <div className="absolute top-full left-0 right-0 sm:right-auto sm:w-80 mt-2 bg-white rounded-2xl shadow-2xl border border-[#E5E2DC] p-2.5 z-50 animate-fadeIn">
+                    <div className="px-2.5 py-2 border-b border-[#F0EDE6] mb-1.5 flex items-center justify-between">
+                      <div>
+                        <div className="text-[10px] font-bold uppercase tracking-wider text-[#2D3A2D]">
+                          Select Demo Staff Persona
+                        </div>
+                        <div className="text-[9px] text-[#706F6C]">
+                          Explore workflows for different staff members
+                        </div>
+                      </div>
+                      <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-emerald-50 text-emerald-700 border border-emerald-200">
+                        3 Roles
+                      </span>
+                    </div>
+
+                    <div className="space-y-1.5">
+                      {DEMO_STAFF_PROFILES.map((staff) => {
+                        const isSelected = selectedStaffProfile.email === staff.email;
+                        return (
+                          <button
+                            key={staff.email}
+                            type="button"
+                            onClick={() => {
+                              setSelectedStaffProfile(staff);
+                              handleQuickDemoLogin(staff);
+                            }}
+                            className={`w-full text-left p-2.5 rounded-xl transition flex items-center gap-2.5 group ${
+                              isSelected
+                                ? 'bg-[#F5F3EF] border border-[#2D3A2D]/30 shadow-xs'
+                                : 'hover:bg-[#FAF9F5] border border-transparent hover:border-[#E5E2DC]'
+                            }`}
+                          >
+                            <div
+                              className={`w-9 h-9 rounded-xl flex items-center justify-center font-bold text-xs border shrink-0 transition-transform group-hover:scale-105 ${staff.color}`}
+                            >
+                              {staff.initials}
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center justify-between">
+                                <span className="text-xs font-bold text-[#1A1A1A] truncate group-hover:text-[#2D3A2D]">
+                                  {staff.name}
+                                </span>
+                                <span className="text-[9px] font-bold uppercase tracking-wider text-[#706F6C]">
+                                  {staff.badge}
+                                </span>
+                              </div>
+                              <div className="text-[10px] text-[#706F6C] truncate">
+                                {staff.role} • <span className="font-mono text-[#9B5A46]">{staff.email}</span>
+                              </div>
+                              <div className="text-[9px] text-emerald-700 font-semibold mt-0.5">
+                                {staff.stats}
+                              </div>
+                            </div>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+              </div>
             </div>
           </div>
 

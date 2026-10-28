@@ -1,10 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { useLanguage } from '../context/LanguageContext.jsx';
+import { useAuth } from '../context/AuthContext.jsx';
 import api from '../services/api.js';
 import { X } from 'lucide-react';
 
 const TaskFormModal = ({ isOpen, onClose, taskToEdit, staffList, customerList, onSaved }) => {
   const { t } = useLanguage();
+  const { user, isAdmin } = useAuth();
+
   const [formData, setFormData] = useState({
     title: '',
     description: '',
@@ -21,7 +24,7 @@ const TaskFormModal = ({ isOpen, onClose, taskToEdit, staffList, customerList, o
       setFormData({
         title: taskToEdit.title || '',
         description: taskToEdit.description || '',
-        assigned_to: taskToEdit.assigned_to?._id || taskToEdit.assigned_to || '',
+        assigned_to: taskToEdit.assigned_to?._id || taskToEdit.assigned_to || (isAdmin ? '' : user?._id || ''),
         customer_id: taskToEdit.customer_id?._id || taskToEdit.customer_id || '',
         status: taskToEdit.status || 'pending',
         due_date: taskToEdit.due_date ? taskToEdit.due_date.substring(0, 10) : '',
@@ -30,14 +33,14 @@ const TaskFormModal = ({ isOpen, onClose, taskToEdit, staffList, customerList, o
       setFormData({
         title: '',
         description: '',
-        assigned_to: staffList?.[0]?._id || '',
+        assigned_to: isAdmin ? (staffList?.[0]?._id || '') : (user?._id || ''),
         customer_id: '',
         status: 'pending',
         due_date: '',
       });
     }
     setError('');
-  }, [taskToEdit, isOpen, staffList]);
+  }, [taskToEdit, isOpen, staffList, isAdmin, user?._id]);
 
   if (!isOpen) return null;
 
@@ -126,19 +129,31 @@ const TaskFormModal = ({ isOpen, onClose, taskToEdit, staffList, customerList, o
               <label className="block text-[10px] font-bold text-[#706F6C] uppercase tracking-widest mb-2">
                 {t('assigned_to')} *
               </label>
-              <select
-                required
-                value={formData.assigned_to}
-                onChange={(e) => setFormData({ ...formData, assigned_to: e.target.value })}
-                className="w-full bg-[#F5F3EF] border border-[#E5E2DC] rounded-xl px-4 py-3 text-xs font-medium focus:border-[#2D3A2D] outline-none transition cursor-pointer"
-              >
-                <option value="">{t('personnel')}</option>
-                {staffList?.map((s) => (
-                  <option key={s._id} value={s._id}>
-                    {s.name}
-                  </option>
-                ))}
-              </select>
+              {isAdmin ? (
+                <select
+                  required
+                  value={formData.assigned_to}
+                  onChange={(e) => setFormData({ ...formData, assigned_to: e.target.value })}
+                  className="w-full bg-[#F5F3EF] border border-[#E5E2DC] rounded-xl px-4 py-3 text-xs font-medium focus:border-[#2D3A2D] outline-none transition cursor-pointer"
+                >
+                  <option value="">{t('personnel')}</option>
+                  {staffList?.map((s) => (
+                    <option key={s._id} value={s._id}>
+                      {s.name} ({s.email})
+                    </option>
+                  ))}
+                </select>
+              ) : (
+                <div className="w-full bg-[#F5F3EF] border border-[#E5E2DC] rounded-xl px-4 py-2.5 text-xs font-semibold text-[#2D3A2D] flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <span className="w-2 h-2 rounded-full bg-emerald-500"></span>
+                    <span>{user?.name || 'You'} (Self)</span>
+                  </div>
+                  <span className="text-[9px] font-bold uppercase tracking-wider px-2 py-0.5 rounded bg-[#2D3A2D]/10 text-[#2D3A2D]">
+                    Staff Task
+                  </span>
+                </div>
+              )}
             </div>
 
             <div>

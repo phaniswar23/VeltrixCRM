@@ -35,7 +35,11 @@ const Footer = () => {
                 </Link>
               </li>
               <li>
-                <Link to="/pricing" className="hover:text-[#2D3A2D] transition-colors">
+                <Link
+                  to="/pricing"
+                  onClick={() => window.scrollTo({ top: 0, left: 0, behavior: 'instant' })}
+                  className="hover:text-[#2D3A2D] transition-colors"
+                >
                   {t('pricing')}
                 </Link>
               </li>
@@ -79,7 +83,7 @@ const Footer = () => {
 
             {/* GitHub Link */}
             <a
-              href="https://github.com/"
+              href="https://github.com/phaniswar23"
               target="_blank"
               rel="noopener noreferrer"
               className="group flex items-center gap-2 px-4 py-2 bg-[#FBFBF9] border border-[#E5E2DC] hover:border-zinc-400 hover:bg-zinc-500/[0.03] rounded-full text-[#706F6C] hover:text-zinc-800 transition-all duration-300 transform hover:-translate-y-0.5"
@@ -90,7 +94,7 @@ const Footer = () => {
 
             {/* LinkedIn Link */}
             <a
-              href="https://www.linkedin.com/"
+              href="https://www.linkedin.com/in/phaniswar99/"
               target="_blank"
               rel="noopener noreferrer"
               className="group flex items-center gap-2 px-4 py-2 bg-[#FBFBF9] border border-[#E5E2DC] hover:border-blue-300 hover:bg-blue-500/[0.03] rounded-full text-[#706F6C] hover:text-blue-600 transition-all duration-300 transform hover:-translate-y-0.5"

@@ -58,33 +58,43 @@ export const createCustomer = async (req, res) => {
       return res.status(400).json({ message: 'Customer name is required' });
     }
 
+    // Role-based rule: Staff accounts cannot assign to other staff; automatically assigned to self
+    const targetAssignedTo = req.user.role === 'staff' ? req.user._id : (assigned_to || null);
+
     const customer = await Customer.create({
-      name,
-      email: email || '',
-      phone: phone || '',
+      name: name.trim(),
+      email: email ? email.trim() : '',
+      phone: phone ? phone.trim() : '',
       status: status || 'lead',
-      assigned_to: assigned_to || null,
+      assigned_to: targetAssignedTo,
     });
 
-    const populatedCustomer = await Customer.findById(customer._id).populate('assigned_to', 'name email role');
+    const populatedCustomer = await Customer.findById(customer._id)
+      .populate('assigned_to', 'name email role')
+      .lean();
 
-    await ActivityLog.create({
-      user_id: req.user._id,
-      action: 'Customer Created',
-      description: `Created customer: ${customer.name}`,
-    });
-
-    // Notify other users
-    const others = await User.find({ _id: { $ne: req.user._id } });
-    const notifs = others.map((other) => ({
-      user_id: other._id,
-      title: 'New Customer Added',
-      message: `Customer ${customer.name} was added by ${req.user.name} (${req.user.role})`,
-      is_read: false,
-    }));
-    if (notifs.length > 0) {
-      await Notification.insertMany(notifs);
-    }
+    // Log activity and create notifications without slowing down the client
+    Promise.all([
+      ActivityLog.create({
+        user_id: req.user._id,
+        action: 'Customer Created',
+        description: `Created customer: ${customer.name}`,
+      }),
+      User.find({ _id: { $ne: req.user._id } })
+        .select('_id')
+        .lean()
+        .then((others) => {
+          if (others.length > 0) {
+            const notifs = others.map((other) => ({
+              user_id: other._id,
+              title: 'New Customer Added',
+              message: `Customer ${customer.name} was added by ${req.user.name} (${req.user.role})`,
+              is_read: false,
+            }));
+            return Notification.insertMany(notifs);
+          }
+        }),
+    ]).catch((err) => console.error('[Background Notification Error]', err.message));
 
     return res.status(201).json({ success: true, customer: populatedCustomer });
   } catch (error) {
@@ -101,15 +111,21 @@ export const updateCustomer = async (req, res) => {
       return res.status(404).json({ message: 'Customer not found' });
     }
 
-    if (name) customer.name = name;
-    if (email !== undefined) customer.email = email;
-    if (phone !== undefined) customer.phone = phone;
+    if (name) customer.name = name.trim();
+    if (email !== undefined) customer.email = email.trim();
+    if (phone !== undefined) customer.phone = phone.trim();
     if (status) customer.status = status;
-    if (assigned_to !== undefined) customer.assigned_to = assigned_to || null;
+
+    // Only admin can reassign a customer to another staff member
+    if (req.user.role === 'admin' && assigned_to !== undefined) {
+      customer.assigned_to = assigned_to || null;
+    }
 
     await customer.save();
 
-    const populatedCustomer = await Customer.findById(customer._id).populate('assigned_to', 'name email role');
+    const populatedCustomer = await Customer.findById(customer._id)
+      .populate('assigned_to', 'name email role')
+      .lean();
 
     await ActivityLog.create({
       user_id: req.user._id,

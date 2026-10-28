@@ -39,6 +39,16 @@ export const AuthProvider = ({ children }) => {
     initAuth();
   }, []);
 
+  // Synchronize online status with heartbeat
+  useEffect(() => {
+    if (!token) return;
+    api.post('/auth/heartbeat').catch(() => {});
+    const interval = setInterval(() => {
+      api.post('/auth/heartbeat').catch(() => {});
+    }, 40000);
+    return () => clearInterval(interval);
+  }, [token]);
+
   const login = async (email, password) => {
     const res = await api.post('/auth/login', { email, password });
     const { token: newToken, user: userData } = res.data;

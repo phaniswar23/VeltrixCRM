@@ -53,14 +53,17 @@ export const createTask = async (req, res) => {
   try {
     const { title, description, assigned_to, customer_id, status, due_date } = req.body;
 
-    if (!title || !assigned_to) {
-      return res.status(400).json({ message: 'Task title and assigned user are required' });
+    if (!title) {
+      return res.status(400).json({ message: 'Task title is required' });
     }
 
+    // Role-based rule: Staff accounts cannot assign tasks to other staff; automatically assigned to self
+    const finalAssignedTo = req.user.role === 'staff' ? req.user._id : (assigned_to || req.user._id);
+
     const task = await Task.create({
-      title,
-      description: description || '',
-      assigned_to,
+      title: title.trim(),
+      description: description ? description.trim() : '',
+      assigned_to: finalAssignedTo,
       customer_id: customer_id || null,
       status: status || 'pending',
       due_date: due_date || null,
@@ -68,25 +71,30 @@ export const createTask = async (req, res) => {
 
     const populatedTask = await Task.findById(task._id)
       .populate('assigned_to', 'name email role')
-      .populate('customer_id', 'name email status');
+      .populate('customer_id', 'name email status')
+      .lean();
 
-    await ActivityLog.create({
-      user_id: req.user._id,
-      action: 'Task Created',
-      description: `Created task: ${task.title}`,
-    });
-
-    // Notify other users
-    const others = await User.find({ _id: { $ne: req.user._id } });
-    const notifs = others.map((other) => ({
-      user_id: other._id,
-      title: 'New Task Created',
-      message: `Task "${task.title}" was created by ${req.user.name} (${req.user.role})`,
-      is_read: false,
-    }));
-    if (notifs.length > 0) {
-      await Notification.insertMany(notifs);
-    }
+    Promise.all([
+      ActivityLog.create({
+        user_id: req.user._id,
+        action: 'Task Created',
+        description: `Created task: ${task.title}`,
+      }),
+      User.find({ _id: { $ne: req.user._id } })
+        .select('_id')
+        .lean()
+        .then((others) => {
+          if (others.length > 0) {
+            const notifs = others.map((other) => ({
+              user_id: other._id,
+              title: 'New Task Created',
+              message: `Task "${task.title}" was created by ${req.user.name} (${req.user.role})`,
+              is_read: false,
+            }));
+            return Notification.insertMany(notifs);
+          }
+        }),
+    ]).catch((err) => console.error('[Background Notification Error]', err.message));
 
     return res.status(201).json({ success: true, task: populatedTask });
   } catch (error) {
@@ -103,18 +111,23 @@ export const updateTask = async (req, res) => {
       return res.status(404).json({ message: 'Task not found' });
     }
 
-    if (title) task.title = title;
-    if (description !== undefined) task.description = description;
-    if (assigned_to) task.assigned_to = assigned_to;
+    if (title) task.title = title.trim();
+    if (description !== undefined) task.description = description.trim();
     if (customer_id !== undefined) task.customer_id = customer_id || null;
     if (status) task.status = status;
     if (due_date !== undefined) task.due_date = due_date || null;
+
+    // Only admin can reassign task to another staff member
+    if (req.user.role === 'admin' && assigned_to !== undefined) {
+      task.assigned_to = assigned_to;
+    }
 
     await task.save();
 
     const populatedTask = await Task.findById(task._id)
       .populate('assigned_to', 'name email role')
-      .populate('customer_id', 'name email status');
+      .populate('customer_id', 'name email status')
+      .lean();
 
     await ActivityLog.create({
       user_id: req.user._id,

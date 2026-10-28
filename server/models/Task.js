@@ -36,5 +36,10 @@ const taskSchema = new mongoose.Schema(
   }
 );
 
+taskSchema.index({ assigned_to: 1 });
+taskSchema.index({ status: 1 });
+taskSchema.index({ customer_id: 1 });
+taskSchema.index({ createdAt: -1 });
+
 const Task = mongoose.model('Task', taskSchema);
 export default Task;

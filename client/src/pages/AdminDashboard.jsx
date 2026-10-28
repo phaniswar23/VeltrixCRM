@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import api from '../services/api.js';
 import { useLanguage } from '../context/LanguageContext.jsx';
@@ -16,6 +16,7 @@ import {
   Eye,
   Activity,
   Layers,
+  Check,
 } from 'lucide-react';
 
 const AdminDashboard = () => {
@@ -23,6 +24,11 @@ const AdminDashboard = () => {
   const [stats, setStats] = useState(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [countdown, setCountdown] = useState(0);
+  const [showSyncSuccess, setShowSyncSuccess] = useState(false);
+
+  const countdownIntervalRef = useRef(null);
+  const successTimeoutRef = useRef(null);
 
   // Modals state
   const [selectedCustomer, setSelectedCustomer] = useState(null);
@@ -41,17 +47,52 @@ const AdminDashboard = () => {
       console.error('Error fetching dashboard data:', err);
     } finally {
       setLoading(false);
-      setRefreshing(false);
     }
   };
 
   useEffect(() => {
     fetchStats();
+    // Background polling every 30 seconds for live synchronicity
+    const autoSyncInterval = setInterval(() => {
+      fetchStats();
+    }, 30000);
+
+    return () => {
+      clearInterval(autoSyncInterval);
+      if (countdownIntervalRef.current) clearInterval(countdownIntervalRef.current);
+      if (successTimeoutRef.current) clearTimeout(successTimeoutRef.current);
+    };
   }, []);
 
   const handleRefresh = () => {
+    if (refreshing || countdown > 0) return;
+
     setRefreshing(true);
+    setShowSyncSuccess(false);
+    setCountdown(5);
+
+    // Immediately trigger backend refresh
     fetchStats();
+
+    if (countdownIntervalRef.current) clearInterval(countdownIntervalRef.current);
+
+    let remainingSeconds = 5;
+    countdownIntervalRef.current = setInterval(() => {
+      remainingSeconds -= 1;
+      if (remainingSeconds > 0) {
+        setCountdown(remainingSeconds);
+      } else {
+        clearInterval(countdownIntervalRef.current);
+        countdownIntervalRef.current = null;
+        setCountdown(0);
+        setRefreshing(false);
+        setShowSyncSuccess(true);
+        if (successTimeoutRef.current) clearTimeout(successTimeoutRef.current);
+        successTimeoutRef.current = setTimeout(() => {
+          setShowSyncSuccess(false);
+        }, 1500);
+      }
+    }, 1000);
   };
 
   if (loading) {
@@ -78,11 +119,35 @@ const AdminDashboard = () => {
         <div className="flex items-center gap-3">
           <button
             onClick={handleRefresh}
-            disabled={refreshing}
-            className="btn-secondary-veltrix !py-2.5 !px-4 text-xs font-bold flex items-center gap-2"
+            disabled={refreshing || countdown > 0}
+            className={`btn-secondary-veltrix !py-2.5 !px-4 text-xs font-bold flex items-center gap-2 relative overflow-hidden transition-all duration-300 ${
+              refreshing
+                ? '!border-emerald-600/40 !bg-emerald-50/70 !text-emerald-900 shadow-inner cursor-wait'
+                : showSyncSuccess
+                ? '!border-emerald-600 !bg-emerald-50 !text-emerald-800'
+                : 'hover:border-[#2D3A2D]'
+            }`}
+            title={refreshing ? `Refreshing (${countdown}s remaining)` : 'Refresh real-time data'}
           >
-            <RefreshCw className={`w-3.5 h-3.5 ${refreshing ? 'animate-spin' : ''}`} />
-            <span>{t('refresh_data')}</span>
+            {refreshing ? (
+              <>
+                <RefreshCw className="w-3.5 h-3.5 animate-spin text-emerald-700" />
+                <span className="tabular-nums">
+                  {t('refreshing') || 'Refreshing'} ({countdown}s)...
+                </span>
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-ping ml-0.5" />
+              </>
+            ) : showSyncSuccess ? (
+              <>
+                <Check className="w-3.5 h-3.5 text-emerald-600" />
+                <span className="text-emerald-700 font-semibold">{t('synced') || 'Synced!'}</span>
+              </>
+            ) : (
+              <>
+                <RefreshCw className="w-3.5 h-3.5 text-[#2D3A2D]" />
+                <span>{t('refresh_data')}</span>
+              </>
+            )}
           </button>
           <button
             onClick={() => setIsAddCustomerOpen(true)}
@@ -132,9 +197,23 @@ const AdminDashboard = () => {
             <span className="text-3xl font-extrabold text-[#1A1A1A]">
               {stats?.totalStaff || 0}
             </span>
-            <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-800 flex items-center gap-1">
-              <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></div>
-              {stats?.onlineStaffCount || 1} {t('online')}
+            <span
+              className={`text-[10px] font-bold px-2 py-0.5 rounded-full flex items-center gap-1.5 transition-all duration-300 ${
+                (stats?.onlineStaffCount ?? 0) > 0
+                  ? 'bg-emerald-50 text-emerald-800 border border-emerald-200/60'
+                  : 'bg-stone-100 text-stone-500 border border-stone-200/60'
+              }`}
+            >
+              <div
+                className={`w-1.5 h-1.5 rounded-full ${
+                  (stats?.onlineStaffCount ?? 0) > 0
+                    ? 'bg-emerald-500 animate-pulse'
+                    : 'bg-stone-400'
+                }`}
+              ></div>
+              <span>
+                {stats?.onlineStaffCount ?? 0} {t('online')}
+              </span>
             </span>
           </div>
           <p className="text-[10px] text-[#706F6C]">active team operators</p>

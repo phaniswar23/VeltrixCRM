@@ -36,6 +36,15 @@ const CustomersPage = () => {
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [deleteId, setDeleteId] = useState(null);
 
+  const fetchStaff = async () => {
+    try {
+      const res = await api.get('/staff');
+      setStaffList(res.data?.staff || []);
+    } catch (err) {
+      console.error('Error fetching staff list:', err);
+    }
+  };
+
   const fetchCustomers = async () => {
     try {
       const params = {};
@@ -48,19 +57,18 @@ const CustomersPage = () => {
         params.staff_id = user?._id;
       }
 
-      const [custRes, staffRes] = await Promise.all([
-        api.get('/customers', { params }),
-        api.get('/staff'),
-      ]);
-
+      const custRes = await api.get('/customers', { params });
       setCustomers(custRes.data?.customers || []);
-      setStaffList(staffRes.data?.staff || []);
     } catch (err) {
       console.error('Error fetching customers:', err);
     } finally {
       setLoading(false);
     }
   };
+
+  useEffect(() => {
+    fetchStaff();
+  }, []);
 
   useEffect(() => {
     fetchCustomers();

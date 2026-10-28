@@ -145,8 +145,15 @@ const StaffPage = () => {
                   <tr key={member._id} className="hover:bg-[#FBFBF9] transition-colors">
                     <td className="px-8 py-5">
                       <div className="flex items-center gap-3">
-                        <div className="w-9 h-9 rounded-xl bg-[#2D3A2D] text-white flex items-center justify-center font-bold text-xs shadow-sm">
-                          {member.name.charAt(0).toUpperCase()}
+                        <div className="relative">
+                          <div className="w-9 h-9 rounded-xl bg-[#2D3A2D] text-white flex items-center justify-center font-bold text-xs shadow-sm">
+                            {member.name.charAt(0).toUpperCase()}
+                          </div>
+                          {member.is_online ? (
+                            <span className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 bg-emerald-500 border-2 border-white rounded-full animate-pulse" title="Online now" />
+                          ) : (
+                            <span className="absolute -bottom-0.5 -right-0.5 w-2 h-2 bg-stone-300 border-2 border-white rounded-full" title="Offline" />
+                          )}
                         </div>
                         <span className="font-bold text-[#1A1A1A]">{member.name}</span>
                       </div>

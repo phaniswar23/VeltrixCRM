@@ -15,15 +15,23 @@ export const getStaff = async (req, res) => {
       ];
     }
 
-    const staffList = await User.find(query).select('-password').sort({ createdAt: -1 });
+    const staffList = await User.find(query).select('-password').sort({ createdAt: -1 }).lean();
 
-    // Aggregate counts for each staff
+    // Aggregate counts for each staff in parallel
     const staffWithCounts = await Promise.all(
       staffList.map(async (member) => {
-        const customersCount = await Customer.countDocuments({ assigned_to: member._id });
-        const tasksCount = await Task.countDocuments({ assigned_to: member._id });
+        const [customersCount, tasksCount] = await Promise.all([
+          Customer.countDocuments({ assigned_to: member._id }),
+          Task.countDocuments({ assigned_to: member._id }),
+        ]);
+        const isOnline = Boolean(
+          member.is_online &&
+          member.last_activity &&
+          (new Date() - new Date(member.last_activity) < 5 * 60 * 1000)
+        );
         return {
-          ...member.toObject(),
+          ...member,
+          is_online: isOnline,
           customers_count: customersCount,
           tasks_count: tasksCount,
         };
@@ -157,58 +165,66 @@ export const getDashboardStats = async (req, res) => {
     const isStaff = req.user.role === 'staff';
     const userId = req.user._id;
 
-    const totalCustomers = isStaff
-      ? await Customer.countDocuments({ assigned_to: userId })
-      : await Customer.countDocuments();
-
-    const totalStaff = await User.countDocuments({ role: 'staff' });
-
-    const totalTasks = isStaff
-      ? await Task.countDocuments({ assigned_to: userId })
-      : await Task.countDocuments();
-
-    const completedTasks = isStaff
-      ? await Task.countDocuments({ assigned_to: userId, status: 'completed' })
-      : await Task.countDocuments({ status: 'completed' });
-
-    const pendingTasks = isStaff
-      ? await Task.countDocuments({ assigned_to: userId, status: 'pending' })
-      : await Task.countDocuments({ status: 'pending' });
-
-    const inProgressTasks = isStaff
-      ? await Task.countDocuments({ assigned_to: userId, status: 'in_progress' })
-      : await Task.countDocuments({ status: 'in_progress' });
-
-    // Recent customers
     const customerFilter = isStaff ? { assigned_to: userId } : {};
-    const recentCustomers = await Customer.find(customerFilter)
-      .populate('assigned_to', 'name')
-      .sort({ createdAt: -1 })
-      .limit(5);
-
-    // Recent tasks
     const taskFilter = isStaff ? { assigned_to: userId } : {};
-    const recentTasks = await Task.find(taskFilter)
-      .populate('assigned_to', 'name')
-      .populate('customer_id', 'name')
-      .sort({ createdAt: -1 })
-      .limit(5);
 
-    // Recent activities
-    const recentActivities = await ActivityLog.find()
-      .populate('user_id', 'name role')
-      .sort({ createdAt: -1 })
-      .limit(6);
-
-    // Growth metrics (last 30 vs prev 30 days)
     const now = new Date();
     const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
     const sixtyDaysAgo = new Date(now.getTime() - 60 * 24 * 60 * 60 * 1000);
+    const activeThreshold = new Date(now.getTime() - 5 * 60 * 1000);
 
-    const last30Customers = await Customer.countDocuments({ createdAt: { $gte: thirtyDaysAgo } });
-    const prev30Customers = await Customer.countDocuments({
-      createdAt: { $gte: sixtyDaysAgo, $lt: thirtyDaysAgo },
-    });
+    // Parallelize all metrics queries simultaneously
+    const [
+      totalCustomers,
+      totalStaff,
+      totalTasks,
+      completedTasks,
+      pendingTasks,
+      inProgressTasks,
+      recentCustomers,
+      recentTasks,
+      recentActivities,
+      last30Customers,
+      prev30Customers,
+      last30Tasks,
+      prev30Tasks,
+      onlineStaffCount,
+      staffMembers,
+    ] = await Promise.all([
+      Customer.countDocuments(customerFilter),
+      User.countDocuments({ role: 'staff' }),
+      Task.countDocuments(taskFilter),
+      Task.countDocuments({ ...taskFilter, status: 'completed' }),
+      Task.countDocuments({ ...taskFilter, status: 'pending' }),
+      Task.countDocuments({ ...taskFilter, status: 'in_progress' }),
+      Customer.find(customerFilter)
+        .populate('assigned_to', 'name')
+        .sort({ createdAt: -1 })
+        .limit(5)
+        .lean(),
+      Task.find(taskFilter)
+        .populate('assigned_to', 'name')
+        .populate('customer_id', 'name')
+        .sort({ createdAt: -1 })
+        .limit(5)
+        .lean(),
+      ActivityLog.find()
+        .populate('user_id', 'name role')
+        .sort({ createdAt: -1 })
+        .limit(6)
+        .lean(),
+      Customer.countDocuments({ createdAt: { $gte: thirtyDaysAgo } }),
+      Customer.countDocuments({ createdAt: { $gte: sixtyDaysAgo, $lt: thirtyDaysAgo } }),
+      Task.countDocuments({ createdAt: { $gte: thirtyDaysAgo } }),
+      Task.countDocuments({ createdAt: { $gte: sixtyDaysAgo, $lt: thirtyDaysAgo } }),
+      User.countDocuments({
+        role: 'staff',
+        is_online: true,
+        last_activity: { $gte: activeThreshold },
+      }),
+      isStaff ? [] : User.find({ role: 'staff' }).select('name email').lean(),
+    ]);
+
     const customerGrowth =
       prev30Customers > 0
         ? Math.round(((last30Customers - prev30Customers) / prev30Customers) * 100)
@@ -216,10 +232,6 @@ export const getDashboardStats = async (req, res) => {
         ? 100
         : 0;
 
-    const last30Tasks = await Task.countDocuments({ createdAt: { $gte: thirtyDaysAgo } });
-    const prev30Tasks = await Task.countDocuments({
-      createdAt: { $gte: sixtyDaysAgo, $lt: thirtyDaysAgo },
-    });
     const taskGrowth =
       prev30Tasks > 0
         ? Math.round(((last30Tasks - prev30Tasks) / prev30Tasks) * 100)
@@ -229,27 +241,23 @@ export const getDashboardStats = async (req, res) => {
 
     const taskEfficiency = totalTasks > 0 ? Math.round((completedTasks / totalTasks) * 100) : 0;
 
-    // Active staff in last 15 minutes
-    const activeThreshold = new Date(now.getTime() - 15 * 60 * 1000);
-    const onlineStaffCount = await User.countDocuments({
-      role: 'staff',
-      last_activity: { $gte: activeThreshold },
-    });
-
-    // Staff performance list
-    const staffMembers = await User.find({ role: 'staff' }).select('name email');
-    const staffPerformance = await Promise.all(
-      staffMembers.map(async (m) => {
-        const cCount = await Customer.countDocuments({ assigned_to: m._id });
-        const tCount = await Task.countDocuments({ assigned_to: m._id });
-        return {
-          _id: m._id,
-          name: m.name,
-          customersCount: cCount,
-          tasksCount: tCount,
-        };
-      })
-    );
+    let staffPerformance = [];
+    if (!isStaff && staffMembers.length > 0) {
+      staffPerformance = await Promise.all(
+        staffMembers.map(async (m) => {
+          const [cCount, tCount] = await Promise.all([
+            Customer.countDocuments({ assigned_to: m._id }),
+            Task.countDocuments({ assigned_to: m._id }),
+          ]);
+          return {
+            _id: m._id,
+            name: m.name,
+            customersCount: cCount,
+            tasksCount: tCount,
+          };
+        })
+      );
+    }
 
     return res.json({
       success: true,

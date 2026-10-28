@@ -4,6 +4,7 @@ import {
   login,
   getMe,
   logout,
+  heartbeat,
   sendOtp,
   verifyOtp,
   resetPassword,
@@ -15,6 +16,7 @@ const router = express.Router();
 router.post('/register', register);
 router.post('/login', login);
 router.get('/me', protect, getMe);
+router.post('/heartbeat', protect, heartbeat);
 router.post('/logout', protect, logout);
 router.post('/forgot-password/send-otp', sendOtp);
 router.post('/forgot-password/verify-otp', verifyOtp);

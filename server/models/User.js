@@ -45,6 +45,10 @@ const userSchema = new mongoose.Schema(
       type: Date,
       default: Date.now,
     },
+    is_online: {
+      type: Boolean,
+      default: false,
+    },
   },
   {
     timestamps: true,

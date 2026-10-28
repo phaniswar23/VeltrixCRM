@@ -35,6 +35,19 @@ const TasksPage = () => {
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [deleteId, setDeleteId] = useState(null);
 
+  const fetchMetadata = async () => {
+    try {
+      const [staffRes, custRes] = await Promise.all([
+        api.get('/staff'),
+        api.get('/customers'),
+      ]);
+      setStaffList(staffRes.data?.staff || []);
+      setCustomerList(custRes.data?.customers || []);
+    } catch (err) {
+      console.error('Error fetching task metadata:', err);
+    }
+  };
+
   const fetchTasks = async () => {
     try {
       const params = {};
@@ -47,21 +60,18 @@ const TasksPage = () => {
         params.staff_id = user?._id;
       }
 
-      const [tasksRes, staffRes, custRes] = await Promise.all([
-        api.get('/tasks', { params }),
-        api.get('/staff'),
-        api.get('/customers'),
-      ]);
-
+      const tasksRes = await api.get('/tasks', { params });
       setTasks(tasksRes.data?.tasks || []);
-      setStaffList(staffRes.data?.staff || []);
-      setCustomerList(custRes.data?.customers || []);
     } catch (err) {
       console.error('Error fetching tasks:', err);
     } finally {
       setLoading(false);
     }
   };
+
+  useEffect(() => {
+    fetchMetadata();
+  }, []);
 
   useEffect(() => {
     fetchTasks();
