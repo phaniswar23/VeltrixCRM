@@ -6,27 +6,44 @@ import User from '../models/User.js';
 export const getAnalyticsData = async (req, res) => {
   try {
     const { range = '30d' } = req.query;
+    const isStaff = req.user.role === 'staff';
+    const userId = req.user._id;
 
-    // 1. Customer Entity Distribution
-    const leadsCount = await Customer.countDocuments({ status: 'lead' });
-    const activeCount = await Customer.countDocuments({ status: 'active' });
-    const inactiveCount = await Customer.countDocuments({ status: 'inactive' });
+    // Filters for role segregation: Staff only view their assigned metrics
+    const custBaseFilter = isStaff ? { assigned_to: userId } : {};
+    const taskBaseFilter = isStaff ? { assigned_to: userId } : {};
+
+    // 1. Customer Distribution
+    const leadsCount = await Customer.countDocuments({ ...custBaseFilter, status: 'lead' });
+    const activeCount = await Customer.countDocuments({ ...custBaseFilter, status: 'active' });
+    const inactiveCount = await Customer.countDocuments({ ...custBaseFilter, status: 'inactive' });
     const totalCustomers = leadsCount + activeCount + inactiveCount;
 
-    // 2. Task Operational Velocity
-    const pendingTasks = await Task.countDocuments({ status: 'pending' });
-    const inProgressTasks = await Task.countDocuments({ status: 'in_progress' });
-    const completedTasks = await Task.countDocuments({ status: 'completed' });
+    // 2. Task Velocity & Priority
+    const pendingTasks = await Task.countDocuments({ ...taskBaseFilter, status: 'pending' });
+    const inProgressTasks = await Task.countDocuments({ ...taskBaseFilter, status: 'in_progress' });
+    const completedTasks = await Task.countDocuments({ ...taskBaseFilter, status: 'completed' });
     const totalTasks = pendingTasks + inProgressTasks + completedTasks;
 
-    // 3. System Pulse Logs (Up to 50 for full audit trail)
-    const logs = await ActivityLog.find()
+    const highPriorityTasks = await Task.countDocuments({ ...taskBaseFilter, priority: 'high' });
+    const mediumPriorityTasks = await Task.countDocuments({ ...taskBaseFilter, priority: 'medium' });
+    const lowPriorityTasks = await Task.countDocuments({ ...taskBaseFilter, priority: 'low' });
+
+    // 3. Activity Logs (Staff only view their own logs)
+    const logFilter = isStaff ? { user_id: userId } : {};
+    const logs = await ActivityLog.find(logFilter)
       .populate('user_id', 'name role email')
       .sort({ createdAt: -1 })
       .limit(50);
 
     // 4. Staff Performance & Workload Breakdown
-    const staffMembers = await User.find({ role: 'staff' }).select('name email');
+    let staffMembers = [];
+    if (!isStaff) {
+      staffMembers = await User.find({ role: 'staff' }).select('name email');
+    } else {
+      staffMembers = [req.user];
+    }
+
     const staffPerformance = await Promise.all(
       staffMembers.map(async (m) => {
         const cCount = await Customer.countDocuments({ assigned_to: m._id });
@@ -48,31 +65,74 @@ export const getAnalyticsData = async (req, res) => {
       })
     );
 
-    // 5. 6-Month Pipeline & Velocity Trajectory
-    const monthNames = ['May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct'];
+    // 5. 6-Month Trajectory
+    const now = new Date();
+    const monthLabels = [];
+    const monthlyCustomers = [];
+    const monthlyTasks = [];
+    const monthlyCompleted = [];
+
+    for (let i = 5; i >= 0; i--) {
+      const dStart = new Date(now.getFullYear(), now.getMonth() - i, 1);
+      const dEnd = new Date(now.getFullYear(), now.getMonth() - i + 1, 1);
+      monthLabels.push(dStart.toLocaleString('en-US', { month: 'short' }));
+
+      const [cCount, tCount, compCount] = await Promise.all([
+        Customer.countDocuments({ ...custBaseFilter, createdAt: { $gte: dStart, $lt: dEnd } }),
+        Task.countDocuments({ ...taskBaseFilter, createdAt: { $gte: dStart, $lt: dEnd } }),
+        Task.countDocuments({ ...taskBaseFilter, status: 'completed', updatedAt: { $gte: dStart, $lt: dEnd } }),
+      ]);
+
+      monthlyCustomers.push(cCount);
+      monthlyTasks.push(tCount);
+      monthlyCompleted.push(compCount);
+    }
+
+    // Ensure the current month has current data if newly seeded
+    if (monthlyCustomers.every((v) => v === 0) && totalCustomers > 0) {
+      monthlyCustomers[5] = totalCustomers;
+    }
+    if (monthlyTasks.every((v) => v === 0) && totalTasks > 0) {
+      monthlyTasks[5] = totalTasks;
+    }
+    if (monthlyCompleted.every((v) => v === 0) && completedTasks > 0) {
+      monthlyCompleted[5] = completedTasks;
+    }
+
     const trajectory = {
-      labels: monthNames,
-      customers: [1, 2, 3, 4, 5, totalCustomers || 6],
-      tasks: [2, 3, 5, 4, 3, totalTasks || 4],
-      completed: [1, 2, 4, 3, 3, completedTasks || 1],
+      labels: monthLabels,
+      customers: monthlyCustomers,
+      tasks: monthlyTasks,
+      completed: monthlyCompleted,
     };
 
-    // 6. Dynamic Executive Insights
-    const conversionRate = totalCustomers > 0 ? Math.round((activeCount / Math.max(1, leadsCount + activeCount)) * 100) : 60;
-    const taskCompletionRate = totalTasks > 0 ? Math.round((completedTasks / totalTasks) * 100) : 25;
-    const topPerformer = staffPerformance.length > 0
-      ? [...staffPerformance].sort((a, b) => (b.customers + b.tasks) - (a.customers + a.tasks))[0]?.name
-      : 'Sarah Jenkins';
+    // 6. Dynamic Executive / Personal Insights
+    const conversionRate = totalCustomers > 0 ? Math.round((activeCount / Math.max(1, leadsCount + activeCount)) * 100) : 0;
+    const taskCompletionRate = totalTasks > 0 ? Math.round((completedTasks / totalTasks) * 100) : 0;
 
-    const aiInsights = [
-      `Conversion efficiency is at ${conversionRate}% with ${activeCount} active operational accounts out of ${totalCustomers} total records.`,
-      `Top workload allocation: ${topPerformer} is driving ${staffPerformance[0]?.customers || 2} customer pipelines with healthy milestone throughput.`,
-      `${pendingTasks} pending tasks are currently in queue; reallocating pending items will accelerate completion velocity by ~24%.`,
-    ];
+    let aiInsights = [];
+    if (isStaff) {
+      aiInsights = [
+        `You have completed ${completedTasks} of ${totalTasks} assigned tasks (${taskCompletionRate}% completion rate).`,
+        `You are managing ${activeCount} active customers and ${leadsCount} leads.`,
+        `${pendingTasks} task${pendingTasks === 1 ? '' : 's'} pending in your queue${highPriorityTasks > 0 ? ` (${highPriorityTasks} high priority)` : ''}.`,
+      ];
+    } else {
+      const topPerformer = staffPerformance.length > 0
+        ? [...staffPerformance].sort((a, b) => b.completedTasks - a.completedTasks)[0]?.name
+        : 'Team';
+
+      aiInsights = [
+        `Team has ${activeCount} active customers and ${leadsCount} leads (${conversionRate}% active rate).`,
+        `Overall task completion rate is ${taskCompletionRate}% (${completedTasks} of ${totalTasks} completed).`,
+        `${pendingTasks} pending tasks across all team members.`,
+      ];
+    }
 
     return res.json({
       success: true,
       data: {
+        isStaff,
         kpis: {
           totalCustomers,
           activeCount,
@@ -86,6 +146,9 @@ export const getAnalyticsData = async (req, res) => {
           taskCompletionRate,
           totalStaff: staffMembers.length,
           totalLogs: logs.length,
+          highPriorityTasks,
+          mediumPriorityTasks,
+          lowPriorityTasks,
           healthScore: 99.8,
         },
         entityDistribution: {
@@ -100,7 +163,13 @@ export const getAnalyticsData = async (req, res) => {
           completed: completedTasks,
           total: totalTasks,
         },
-        staffPerformance,
+        taskPriority: {
+          high: highPriorityTasks,
+          medium: mediumPriorityTasks,
+          low: lowPriorityTasks,
+        },
+        staffPerformance: isStaff ? [] : staffPerformance,
+        personalPerformance: isStaff ? staffPerformance[0] : null,
         trajectory,
         aiInsights,
         logs,
@@ -113,7 +182,9 @@ export const getAnalyticsData = async (req, res) => {
 
 export const exportCsv = async (req, res) => {
   try {
-    const customers = await Customer.find().populate('assigned_to', 'name email');
+    const isStaff = req.user.role === 'staff';
+    const filter = isStaff ? { assigned_to: req.user._id } : {};
+    const customers = await Customer.find(filter).populate('assigned_to', 'name email');
 
     let csv = 'ID,Name,Email,Phone,Status,Assigned To,Created At\n';
     customers.forEach((c) => {
@@ -125,7 +196,7 @@ export const exportCsv = async (req, res) => {
     });
 
     res.header('Content-Type', 'text/csv');
-    res.attachment(`veltrix_crm_intelligence_export_${Date.now()}.csv`);
+    res.attachment(`veltrix_crm_export_${Date.now()}.csv`);
     return res.send(csv);
   } catch (error) {
     return res.status(500).json({ message: error.message });
@@ -138,11 +209,11 @@ export const clearLogs = async (req, res) => {
 
     await ActivityLog.create({
       user_id: req.user._id,
-      action: 'Sequence Purged',
-      description: `Immutable activity sequence was purged by ${req.user.name}`,
+      action: 'History Cleared',
+      description: `Activity history was cleared by ${req.user.name}`,
     });
 
-    return res.json({ success: true, message: 'Activity sequence purged successfully' });
+    return res.json({ success: true, message: 'Activity logs cleared successfully' });
   } catch (error) {
     return res.status(500).json({ message: error.message });
   }

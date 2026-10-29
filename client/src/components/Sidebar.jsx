@@ -9,6 +9,8 @@ import {
   CheckSquare,
   BarChart3,
   Sparkles,
+  Layers,
+  ShieldCheck,
 } from 'lucide-react';
 
 const Sidebar = () => {
@@ -20,31 +22,40 @@ const Sidebar = () => {
   const navItems = [
     {
       to: `${prefix}/dashboard`,
-      label: t('dashboard'),
+      label: t('dashboard') || 'Dashboard',
       icon: LayoutDashboard,
     },
     {
       to: `${prefix}/customers`,
-      label: t('customers'),
+      label: t('customers') || 'Customers',
       icon: Users,
     },
     ...(isAdmin
       ? [
           {
             to: '/admin/staff',
-            label: t('staff'),
+            label: t('staff') || 'Staff Management',
             icon: UserCheck,
           },
         ]
       : []),
     {
       to: `${prefix}/tasks`,
-      label: t('tasks'),
+      label: t('tasks') || 'Tasks',
       icon: CheckSquare,
     },
+    ...(isAdmin
+      ? [
+          {
+            to: '/admin/activity',
+            label: 'Activity Logs',
+            icon: ShieldCheck,
+          },
+        ]
+      : []),
     {
       to: `${prefix}/analytics`,
-      label: t('analytics'),
+      label: t('analytics') || 'Analytics',
       icon: BarChart3,
     },
   ];
@@ -87,24 +98,41 @@ const Sidebar = () => {
         </div>
       </div>
 
-      {/* Upgrade Card */}
+      {/* Bottom Section: Staff Profile or Admin Plan Link */}
       <div className="mt-auto pt-6">
-        <div className="bg-[#F5F3EF] p-5 rounded-[24px] relative overflow-hidden border border-[#E5E2DC]">
-          <div className="absolute top-0 right-0 -mr-4 -mt-4 w-20 h-20 bg-[#2D3A2D]/5 rounded-full pointer-events-none"></div>
-          <div className="flex items-center gap-1.5 mb-1 text-[#2D3A2D]">
-            <Sparkles className="w-3.5 h-3.5 text-[#9B5A46]" />
-            <h4 className="font-bold text-xs">Upgrade Experience</h4>
+        {isAdmin ? (
+          <div className="bg-[#F5F3EF] p-5 rounded-[24px] relative overflow-hidden border border-[#E5E2DC]">
+            <div className="flex items-center gap-1.5 mb-1 text-[#2D3A2D]">
+              <Sparkles className="w-3.5 h-3.5 text-[#9B5A46]" />
+              <h4 className="font-bold text-xs">Workspace Plan</h4>
+            </div>
+            <p className="text-[10px] text-[#706F6C] mb-3 leading-relaxed">
+              Manage your subscription and team features.
+            </p>
+            <Link
+              to="/pricing"
+              className="w-full bg-[#2D3A2D] text-white text-[10px] font-bold py-2.5 rounded-xl hover:opacity-90 transition block text-center shadow-sm"
+            >
+              View Plans
+            </Link>
           </div>
-          <p className="text-[10px] text-[#706F6C] mb-4 leading-relaxed">
-            Unlock advanced AI workflows and priority processing.
-          </p>
-          <Link
-            to="/pricing"
-            className="w-full bg-[#2D3A2D] text-white text-[10px] font-bold py-2.5 rounded-xl hover:opacity-90 transition block text-center shadow-sm"
-          >
-            Upgrade Plan
-          </Link>
-        </div>
+        ) : (
+          <div className="bg-[#F5F3EF] p-4 rounded-[24px] border border-[#E5E2DC] flex items-center gap-3">
+            <div className="w-10 h-10 rounded-2xl bg-[#2D3A2D] text-white flex items-center justify-center font-bold text-sm shadow-xs shrink-0">
+              {user?.name?.charAt(0) || 'S'}
+            </div>
+            <div className="min-w-0 flex-1">
+              <div className="flex items-center gap-1.5">
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 shrink-0"></span>
+                <h4 className="font-bold text-xs text-[#1A1A1A] truncate">{user?.name || 'Staff User'}</h4>
+              </div>
+              <p className="text-[10px] text-[#706F6C] truncate">{user?.email}</p>
+              <span className="inline-block mt-1 text-[9px] font-bold uppercase tracking-wider text-[#2D3A2D] bg-[#2D3A2D]/10 px-2 py-0.5 rounded">
+                Staff Portal
+              </span>
+            </div>
+          </div>
+        )}
       </div>
     </aside>
   );

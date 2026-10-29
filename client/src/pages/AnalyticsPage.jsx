@@ -21,7 +21,6 @@ import {
   Download,
   Trash2,
   Activity,
-  Layers,
   BarChart3,
   CheckCircle2,
   FileSpreadsheet,
@@ -33,10 +32,8 @@ import {
   ChevronLeft,
   ChevronRight,
   Printer,
-  ShieldCheck,
   Clock,
   ArrowUpRight,
-  Filter,
   FileText,
   FileCode,
   Code,
@@ -45,6 +42,9 @@ import {
   Globe,
   X,
   ChevronDown,
+  Sparkles,
+  Check,
+  AlertCircle,
 } from 'lucide-react';
 
 ChartJS.register(
@@ -61,7 +61,7 @@ ChartJS.register(
 );
 
 const AnalyticsPage = () => {
-  const { isAdmin } = useAuth();
+  const { user, isAdmin } = useAuth();
   const { t } = useLanguage();
 
   const [analytics, setAnalytics] = useState(null);
@@ -72,7 +72,7 @@ const AnalyticsPage = () => {
   const [isExportModalOpen, setIsExportModalOpen] = useState(false);
   const [toastMessage, setToastMessage] = useState('');
 
-  // Search & Filtering for System Pulse Logs
+  // Search & Filtering for Activity Logs
   const [logSearch, setLogSearch] = useState('');
   const [logFilter, setLogFilter] = useState('all'); // 'all' | 'customer' | 'task' | 'auth'
   const [currentPage, setCurrentPage] = useState(1);
@@ -80,7 +80,7 @@ const AnalyticsPage = () => {
 
   const showToast = (msg) => {
     setToastMessage(msg);
-    setTimeout(() => setToastMessage(''), 3200);
+    setTimeout(() => setToastMessage(''), 3000);
   };
 
   const fetchAnalytics = async (isManual = false) => {
@@ -92,7 +92,7 @@ const AnalyticsPage = () => {
       console.error('Failed to fetch analytics data:', err);
     } finally {
       setLoading(false);
-      if (isManual) setTimeout(() => setRefreshing(false), 500);
+      if (isManual) setTimeout(() => setRefreshing(false), 400);
     }
   };
 
@@ -114,34 +114,38 @@ const AnalyticsPage = () => {
   };
 
   // ----------------------------------------------------
-  // 10 ENTERPRISE EXPORT SUITE IMPLEMENTATIONS
+  // EXPORT HANDLERS
   // ----------------------------------------------------
 
-  // 1. Customer Pipeline CSV
+  // 1. Customer CSV
   const exportCustomerCsv = async () => {
     try {
-      const res = await api.get('/customers');
+      const params = {};
+      if (!isAdmin && user?._id) params.staff_id = user._id;
+      const res = await api.get('/customers', { params });
       const list = res.data?.customers || [];
-      let csv = 'ID,Name,Email,Phone,Status,Assigned Representative,Role,Created At\n';
+      let csv = 'ID,Name,Email,Phone,Status,Assigned To,Created At\n';
       list.forEach((c) => {
-        csv += `"${c._id}","${c.name}","${c.email || ''}","${c.phone || ''}","${c.status}","${c.assigned_to?.name || 'Unassigned'}","${c.assigned_to?.role || ''}","${c.createdAt}"\n`;
+        csv += `"${c._id}","${c.name}","${c.email || ''}","${c.phone || ''}","${c.status}","${c.assigned_to?.name || 'Unassigned'}","${c.createdAt}"\n`;
       });
-      downloadFile(`Veltrix_Customer_Pipeline_${Date.now()}.csv`, csv, 'text/csv');
-      showToast('✓ Customer Pipeline (.csv) exported successfully');
+      const filename = isAdmin ? `Veltrix_Customers_${Date.now()}.csv` : `My_Customers_${Date.now()}.csv`;
+      downloadFile(filename, csv, 'text/csv');
+      showToast('Customers (.csv) downloaded successfully');
     } catch {
-      showToast('Exporting via backend stream...');
-      window.location.href = '/api/analytics/export';
+      showToast('Failed to export customers');
     }
   };
 
-  // 2. Microsoft Excel Workbook (.xls)
+  // 2. Microsoft Excel (.xls)
   const exportExcelWorkbook = async () => {
     try {
-      const res = await api.get('/customers');
+      const params = {};
+      if (!isAdmin && user?._id) params.staff_id = user._id;
+      const res = await api.get('/customers', { params });
       const list = res.data?.customers || [];
       let xml = `<?xml version="1.0"?><?mso-application progid="Excel.Sheet"?>
 <Workbook xmlns="urn:schemas-microsoft-com:office:spreadsheet" xmlns:ss="urn:schemas-microsoft-com:office:spreadsheet">
-  <Worksheet ss:Name="Customer Pipeline">
+  <Worksheet ss:Name="Customers">
     <Table>
       <Row>
         <Cell><Data ss:Type="String">ID</Data></Cell>
@@ -149,7 +153,7 @@ const AnalyticsPage = () => {
         <Cell><Data ss:Type="String">Email</Data></Cell>
         <Cell><Data ss:Type="String">Phone</Data></Cell>
         <Cell><Data ss:Type="String">Status</Data></Cell>
-        <Cell><Data ss:Type="String">Assigned Representative</Data></Cell>
+        <Cell><Data ss:Type="String">Assigned To</Data></Cell>
         <Cell><Data ss:Type="String">Created Date</Data></Cell>
       </Row>`;
       list.forEach((c) => {
@@ -168,48 +172,46 @@ const AnalyticsPage = () => {
     </Table>
   </Worksheet>
 </Workbook>`;
-      downloadFile(`Veltrix_CRM_Workbook_${Date.now()}.xls`, xml, 'application/vnd.ms-excel');
-      showToast('✓ Microsoft Excel Workbook (.xls) exported successfully');
+      const filename = isAdmin ? `Veltrix_Customers_${Date.now()}.xls` : `My_Customers_${Date.now()}.xls`;
+      downloadFile(filename, xml, 'application/vnd.ms-excel');
+      showToast('Excel workbook (.xls) downloaded successfully');
     } catch {
       showToast('Failed to export Excel workbook');
     }
   };
 
-  // 3. Raw Telemetry Payload (.json)
-  const exportJsonTelemetry = () => {
-    const payload = JSON.stringify(analytics, null, 2);
-    downloadFile(`Veltrix_Telemetry_Payload_${Date.now()}.json`, payload, 'application/json');
-    showToast('✓ Raw Telemetry Payload (.json) exported successfully');
-  };
-
-  // 4. Activity Audit Sequence Logs (.csv)
-  const exportAuditLogsCsv = () => {
-    const logs = analytics?.logs || [];
-    let csv = 'Log ID,Authority,Role,Operation,Parameter / Description,Timestamp\n';
-    logs.forEach((l) => {
-      csv += `"${l._id}","${l.user_id?.name || 'System'}","${l.user_id?.role || 'Service'}","${l.action}","${(l.description || '').replace(/"/g, '""')}","${l.createdAt}"\n`;
-    });
-    downloadFile(`Veltrix_Audit_Telemetry_${Date.now()}.csv`, csv, 'text/csv');
-    showToast('✓ Activity Audit Telemetry (.csv) exported successfully');
-  };
-
-  // 5. Tasks & Milestone Objectives (.csv)
+  // 3. Tasks CSV
   const exportTasksCsv = async () => {
     try {
-      const res = await api.get('/tasks');
+      const params = {};
+      if (!isAdmin && user?._id) params.staff_id = user._id;
+      const res = await api.get('/tasks', { params });
       const list = res.data?.tasks || [];
-      let csv = 'Task ID,Title,Status,Priority,Assigned Representative,Customer,Due Date,Created At\n';
+      let csv = 'Task ID,Title,Status,Priority,Assigned To,Customer,Due Date,Created At\n';
       list.forEach((t) => {
-        csv += `"${t._id}","${t.title}","${t.status}","${t.priority || 'medium'}","${t.assigned_to?.name || 'Unassigned'}","${t.customer_id?.name || 'N/A'}","${t.due_date || 'N/A'}","${t.createdAt}"\n`;
+        csv += `"${t._id}","${t.title}","${t.status}","${t.priority || 'medium'}","${t.assigned_to?.name || 'Unassigned'}","${t.customer_id?.name || 'Internal'}","${t.due_date || ''}","${t.createdAt}"\n`;
       });
-      downloadFile(`Veltrix_Task_Milestones_${Date.now()}.csv`, csv, 'text/csv');
-      showToast('✓ Tasks & Objectives (.csv) exported successfully');
+      const filename = isAdmin ? `Veltrix_Tasks_${Date.now()}.csv` : `My_Tasks_${Date.now()}.csv`;
+      downloadFile(filename, csv, 'text/csv');
+      showToast('Tasks (.csv) downloaded successfully');
     } catch {
       showToast('Failed to export tasks');
     }
   };
 
-  // 6. Workforce Performance & Capacity Matrix (.csv)
+  // 4. Activity Logs CSV
+  const exportAuditLogsCsv = () => {
+    const logs = analytics?.logs || [];
+    let csv = 'Log ID,User,Role,Action,Details,Time\n';
+    logs.forEach((l) => {
+      csv += `"${l._id}","${l.user_id?.name || 'System'}","${l.user_id?.role || 'Service'}","${l.action}","${(l.description || '').replace(/"/g, '""')}","${l.createdAt}"\n`;
+    });
+    const filename = isAdmin ? `Veltrix_Activity_Logs_${Date.now()}.csv` : `My_Activity_Logs_${Date.now()}.csv`;
+    downloadFile(filename, csv, 'text/csv');
+    showToast('Activity logs (.csv) downloaded successfully');
+  };
+
+  // 5. Staff Performance CSV (Admin only)
   const exportStaffCsv = () => {
     const staff = analytics?.staffPerformance || [];
     let csv = 'Staff ID,Name,Email,Assigned Customers,Total Tasks,Completed Tasks,In-Progress Tasks,Pending Tasks,Efficiency %\n';
@@ -217,115 +219,112 @@ const AnalyticsPage = () => {
       csv += `"${s.id || ''}","${s.name}","${s.email}","${s.customers}","${s.tasks}","${s.completedTasks || 0}","${s.inProgressTasks || 0}","${s.pendingTasks || 0}","${s.efficiency || 100}%"\n`;
     });
     downloadFile(`Veltrix_Staff_Performance_${Date.now()}.csv`, csv, 'text/csv');
-    showToast('✓ Staff Performance Matrix (.csv) exported successfully');
+    showToast('Staff performance (.csv) downloaded successfully');
   };
 
-  // 7. Tab-Separated Values Stream (.tsv)
-  const exportCustomerTsv = async () => {
-    try {
-      const res = await api.get('/customers');
-      const list = res.data?.customers || [];
-      let tsv = 'ID\tName\tEmail\tPhone\tStatus\tAssigned Representative\tCreated At\n';
-      list.forEach((c) => {
-        tsv += `${c._id}\t${c.name}\t${c.email || ''}\t${c.phone || ''}\t${c.status}\t${c.assigned_to?.name || 'Unassigned'}\t${c.createdAt}\n`;
-      });
-      downloadFile(`Veltrix_Pipeline_${Date.now()}.tsv`, tsv, 'text/tab-separated-values');
-      showToast('✓ Tab-Separated Values (.tsv) exported successfully');
-    } catch {
-      showToast('Failed to export TSV');
-    }
+  // 6. JSON Snapshot
+  const exportJsonTelemetry = () => {
+    const payload = JSON.stringify(analytics, null, 2);
+    downloadFile(`Veltrix_Analytics_Data_${Date.now()}.json`, payload, 'application/json');
+    showToast('JSON snapshot downloaded successfully');
   };
 
-  // 8. Executive Markdown Report (.md)
+  // 7. Markdown Report (Admin only)
   const exportMarkdownReport = () => {
-    const md = `# VeltrixCRM Executive Intelligence Report
+    const md = `# VeltrixCRM Analytics Report
 Generated: ${new Date().toLocaleString()}
 
-## 1. Key Performance Indicators (KPIs)
-- **Total Pipeline Records:** ${kpis.totalCustomers}
-- **Active Operational Accounts:** ${kpis.activeCount}
-- **Lead Accounts:** ${kpis.leadsCount}
-- **Conversion Efficiency Rate:** ${kpis.conversionRate}%
-- **Total Operational Deliverables:** ${kpis.totalTasks}
-- **Task Resolution Rate:** ${kpis.taskCompletionRate}%
-- **Active Workforce Strength:** ${kpis.totalStaff} Field Staff
-- **System Telemetry Health Score:** ${kpis.healthScore}%
+## Key Metrics
+- Total Customers: ${kpis.totalCustomers}
+- Active Accounts: ${kpis.activeCount}
+- Leads: ${kpis.leadsCount}
+- Active Rate: ${kpis.conversionRate}%
+- Total Tasks: ${kpis.totalTasks}
+- Task Completion Rate: ${kpis.taskCompletionRate}%
+- Team Members: ${kpis.totalStaff}
 
-## 2. Workforce Resource Allocation
-| Representative | Email | Customer Accounts | Assigned Tasks | Resolution Efficiency |
+## Staff Breakdown
+| Staff Member | Email | Customers | Tasks | Efficiency |
 |---|---|---|---|---|
-${(analytics?.staffPerformance || []).map(s => `| ${s.name} | ${s.email} | ${s.customers} | ${s.tasks} | ${s.efficiency || 100}% |`).join('\n')}
+${(analytics?.staffPerformance || []).map((s) => `| ${s.name} | ${s.email} | ${s.customers} | ${s.tasks} | ${s.efficiency || 100}% |`).join('\n')}
 
-## 3. Recent Audit Telemetry (Top 10)
-| Authority | Operation | Description | Timestamp |
+## Recent Activity (Top 10)
+| User | Action | Details | Time |
 |---|---|---|---|
-${(analytics?.logs || []).slice(0, 10).map(l => `| ${l.user_id?.name || 'System'} | ${l.action} | ${l.description || 'N/A'} | ${new Date(l.createdAt).toLocaleString()} |`).join('\n')}
-
----
-*VeltrixCRM Intelligence Engine • Confidential Telemetry Document*
+${(analytics?.logs || []).slice(0, 10).map((l) => `| ${l.user_id?.name || 'System'} | ${l.action} | ${l.description || 'N/A'} | ${new Date(l.createdAt).toLocaleString()} |`).join('\n')}
 `;
-    downloadFile(`Veltrix_Executive_Briefing_${Date.now()}.md`, md, 'text/markdown');
-    showToast('✓ Executive Markdown Report (.md) exported successfully');
+    downloadFile(`Veltrix_Summary_${Date.now()}.md`, md, 'text/markdown');
+    showToast('Markdown report (.md) downloaded successfully');
   };
 
-  // 9. Standalone HTML Interactive Document (.html)
+  // 8. HTML Document
   const exportHtmlReport = () => {
+    const titleText = isAdmin ? 'VeltrixCRM Team Analytics Report' : 'VeltrixCRM Personal Analytics Report';
     const html = `<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="utf-8">
-  <title>VeltrixCRM Executive Intelligence Report</title>
+  <title>${titleText}</title>
   <style>
     body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; padding: 40px; color: #1A1A1A; background: #FBFBF9; margin: 0; }
     .container { max-width: 900px; margin: 0 auto; }
     .header { margin-bottom: 24px; padding-bottom: 16px; border-bottom: 1px solid #E5E2DC; }
-    h1 { font-size: 26px; color: #2D3A2D; margin: 0 0 6px 0; }
+    h1 { font-size: 24px; color: #2D3A2D; margin: 0 0 6px 0; }
     .kpi-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin-bottom: 24px; }
     .kpi { background: white; border: 1px solid #E5E2DC; padding: 16px; border-radius: 16px; }
-    .kpi-num { font-size: 28px; font-weight: 800; color: #1A1A1A; margin-top: 4px; }
-    .kpi-label { font-size: 11px; text-transform: uppercase; color: #706F6C; font-weight: 700; letter-spacing: 0.05em; }
-    .card { background: white; border: 1px solid #E5E2DC; border-radius: 16px; padding: 24px; margin-bottom: 24px; }
+    .kpi-num { font-size: 26px; font-weight: 800; color: #1A1A1A; margin-top: 4px; }
+    .kpi-label { font-size: 11px; text-transform: uppercase; color: #706F6C; font-weight: 700; }
+    .card { background: white; border: 1px solid #E5E2DC; border-radius: 16px; padding: 20px; margin-bottom: 20px; }
     table { width: 100%; border-collapse: collapse; margin-top: 12px; font-size: 12px; }
-    th, td { padding: 10px 14px; text-align: left; border-bottom: 1px solid #E5E2DC; }
+    th, td { padding: 10px 12px; text-align: left; border-bottom: 1px solid #E5E2DC; }
     th { background: #FAF9F5; font-size: 10px; text-transform: uppercase; color: #706F6C; font-weight: 700; }
   </style>
 </head>
 <body>
   <div class="container">
     <div class="header">
-      <h1>VeltrixCRM Executive Intelligence Report</h1>
-      <p style="color: #706F6C; font-size: 12px; margin: 0;">Telemetry snapshot generated on ${new Date().toLocaleString()}</p>
+      <h1>${titleText}</h1>
+      <p style="color: #706F6C; font-size: 12px; margin: 0;">Report generated on ${new Date().toLocaleString()}</p>
     </div>
     
     <div class="kpi-grid">
-      <div class="kpi"><div class="kpi-label">Pipeline Accounts</div><div class="kpi-num">${kpis.totalCustomers}</div></div>
-      <div class="kpi"><div class="kpi-label">Conversion Rate</div><div class="kpi-num">${kpis.conversionRate}%</div></div>
-      <div class="kpi"><div class="kpi-label">Active Objectives</div><div class="kpi-num">${kpis.totalTasks}</div></div>
-      <div class="kpi"><div class="kpi-label">Platform Health</div><div class="kpi-num">${kpis.healthScore}%</div></div>
+      <div class="kpi"><div class="kpi-label">${isAdmin ? 'Customers' : 'My Customers'}</div><div class="kpi-num">${kpis.totalCustomers}</div></div>
+      <div class="kpi"><div class="kpi-label">Active Rate</div><div class="kpi-num">${kpis.conversionRate}%</div></div>
+      <div class="kpi"><div class="kpi-label">${isAdmin ? 'Total Tasks' : 'My Tasks'}</div><div class="kpi-num">${kpis.totalTasks}</div></div>
+      <div class="kpi"><div class="kpi-label">Completion Rate</div><div class="kpi-num">${kpis.taskCompletionRate}%</div></div>
     </div>
 
-    <div class="card">
-      <h3 style="margin: 0 0 12px 0; font-size: 16px;">Workforce Resource Allocation</h3>
+    ${
+      isAdmin && (analytics?.staffPerformance || []).length > 0
+        ? `<div class="card">
+      <h3 style="margin: 0 0 12px 0; font-size: 15px;">Team Performance</h3>
       <table>
-        <thead><tr><th>Representative</th><th>Email</th><th>Customers</th><th>Assigned Tasks</th><th>Efficiency</th></tr></thead>
+        <thead><tr><th>Staff Member</th><th>Email</th><th>Customers</th><th>Tasks</th><th>Efficiency</th></tr></thead>
         <tbody>
-          ${(analytics?.staffPerformance || []).map(s => `<tr><td><strong>${s.name}</strong></td><td>${s.email}</td><td>${s.customers}</td><td>${s.tasks}</td><td>${s.efficiency || 100}%</td></tr>`).join('')}
+          ${(analytics?.staffPerformance || [])
+            .map(
+              (s) =>
+                `<tr><td><strong>${s.name}</strong></td><td>${s.email}</td><td>${s.customers}</td><td>${s.tasks}</td><td>${s.efficiency || 100}%</td></tr>`
+            )
+            .join('')}
         </tbody>
       </table>
-    </div>
+    </div>`
+        : ''
+    }
   </div>
 </body>
 </html>`;
-    downloadFile(`Veltrix_Interactive_Report_${Date.now()}.html`, html, 'text/html');
-    showToast('✓ Standalone HTML Report (.html) exported successfully');
+    downloadFile(`Veltrix_Report_${Date.now()}.html`, html, 'text/html');
+    showToast('HTML report (.html) downloaded successfully');
   };
 
-  // 10. Copy JSON Telemetry to Clipboard
+  // 9. Copy JSON
   const copyJsonToClipboard = () => {
     const payload = JSON.stringify(analytics, null, 2);
     if (navigator.clipboard) {
       navigator.clipboard.writeText(payload);
-      showToast('✓ Raw Telemetry JSON copied to clipboard!');
+      showToast('JSON data copied to clipboard');
     } else {
       showToast('Clipboard access unavailable');
     }
@@ -405,24 +404,27 @@ ${(analytics?.logs || []).slice(0, 10).map(l => `| ${l.user_id?.name || 'System'
 
   // Derived KPI Stats
   const kpis = analytics?.kpis || {
-    totalCustomers: analytics?.entityDistribution?.total || 0,
-    activeCount: analytics?.entityDistribution?.active || 0,
-    leadsCount: analytics?.entityDistribution?.lead || 0,
-    inactiveCount: analytics?.entityDistribution?.inactive || 0,
-    totalTasks: analytics?.taskVelocity?.total || 0,
-    pendingTasks: analytics?.taskVelocity?.pending || 0,
-    inProgressTasks: analytics?.taskVelocity?.in_progress || 0,
-    completedTasks: analytics?.taskVelocity?.completed || 0,
-    conversionRate: 40,
-    taskCompletionRate: 25,
-    totalStaff: analytics?.staffPerformance?.length || 3,
-    totalLogs: analytics?.logs?.length || 0,
+    totalCustomers: 0,
+    activeCount: 0,
+    leadsCount: 0,
+    inactiveCount: 0,
+    totalTasks: 0,
+    pendingTasks: 0,
+    inProgressTasks: 0,
+    completedTasks: 0,
+    conversionRate: 0,
+    taskCompletionRate: 0,
+    totalStaff: 1,
+    totalLogs: 0,
+    highPriorityTasks: 0,
+    mediumPriorityTasks: 0,
+    lowPriorityTasks: 0,
     healthScore: 99.8,
   };
 
-  // 1. Doughnut Chart Data: Entity Distribution
+  // Chart 1: Customer Distribution Donut
   const entityChartData = {
-    labels: [t('lead') || 'Leads', t('active') || 'Active Accounts', t('inactive') || 'Inactive'],
+    labels: ['Leads', 'Active Customers', 'Inactive'],
     datasets: [
       {
         data: [
@@ -430,40 +432,40 @@ ${(analytics?.logs || []).slice(0, 10).map(l => `| ${l.user_id?.name || 'System'
           analytics?.entityDistribution?.active || 0,
           analytics?.entityDistribution?.inactive || 0,
         ],
-        backgroundColor: ['#F59E0B', '#10B981', '#64748B'],
+        backgroundColor: ['#F59E0B', '#10B981', '#94A3B8'],
         borderColor: ['#ffffff', '#ffffff', '#ffffff'],
         borderWidth: 3,
-        hoverOffset: 8,
+        hoverOffset: 6,
       },
     ],
   };
 
-  // 2. Bar Chart Data: Task Operational Velocity
+  // Chart 2: Task Status Bar
   const velocityChartData = {
-    labels: [t('pending') || 'Pending', t('in_progress') || 'In Progress', t('completed') || 'Completed'],
+    labels: ['Pending', 'In Progress', 'Completed'],
     datasets: [
       {
-        label: 'Deliverables',
+        label: 'Tasks',
         data: [
           analytics?.taskVelocity?.pending || 0,
           analytics?.taskVelocity?.in_progress || 0,
           analytics?.taskVelocity?.completed || 0,
         ],
         backgroundColor: ['#F59E0B', '#3B82F6', '#10B981'],
-        borderRadius: 10,
+        borderRadius: 8,
         borderSkipped: false,
       },
     ],
   };
 
-  // 3. Line Chart Data: 6-Month Growth Trajectory
+  // Chart 3: 6-Month Trajectory
   const trajectoryLabels = analytics?.trajectory?.labels || ['May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct'];
   const trajectoryChartData = {
     labels: trajectoryLabels,
     datasets: [
       {
-        label: 'Customer Accounts',
-        data: analytics?.trajectory?.customers || [1, 2, 3, 4, 5, kpis.totalCustomers],
+        label: isAdmin ? 'New Customers' : 'Assigned Customers',
+        data: analytics?.trajectory?.customers || [0, 0, 0, 0, 0, kpis.totalCustomers],
         borderColor: '#2D3A2D',
         backgroundColor: 'rgba(45, 58, 45, 0.08)',
         fill: true,
@@ -473,8 +475,8 @@ ${(analytics?.logs || []).slice(0, 10).map(l => `| ${l.user_id?.name || 'System'
         pointBackgroundColor: '#2D3A2D',
       },
       {
-        label: 'Tasks Resolved',
-        data: analytics?.trajectory?.completed || [1, 2, 4, 3, 3, kpis.completedTasks],
+        label: 'Tasks Completed',
+        data: analytics?.trajectory?.completed || [0, 0, 0, 0, 0, kpis.completedTasks],
         borderColor: '#10B981',
         backgroundColor: 'rgba(16, 185, 129, 0.08)',
         fill: true,
@@ -486,135 +488,188 @@ ${(analytics?.logs || []).slice(0, 10).map(l => `| ${l.user_id?.name || 'System'
     ],
   };
 
-  // List of 10 Available Export Options for the Modal
-  const exportOptionsList = [
-    {
-      id: 'customer_csv',
-      title: 'Customer Pipeline Dataset',
-      format: 'CSV',
-      badge: 'Most Popular',
-      desc: 'All active and lead customer records with contact details & assignees.',
-      icon: FileSpreadsheet,
-      color: 'bg-emerald-50 text-emerald-700 border-emerald-200',
-      action: exportCustomerCsv,
-    },
-    {
-      id: 'excel_wb',
-      title: 'Microsoft Excel Workbook',
-      format: 'XLS',
-      badge: 'Spreadsheet',
-      desc: 'Formatted native Excel spreadsheet with styled header columns.',
-      icon: Table,
-      color: 'bg-green-50 text-green-700 border-green-200',
-      action: exportExcelWorkbook,
-    },
-    {
-      id: 'json_raw',
-      title: 'Full Telemetry Payload',
-      format: 'JSON',
-      badge: 'Developer',
-      desc: 'Complete structured JSON snapshot with KPIs, metrics & system telemetry.',
-      icon: Code,
-      color: 'bg-sky-50 text-sky-700 border-sky-200',
-      action: exportJsonTelemetry,
-    },
-    {
-      id: 'audit_logs',
-      title: 'Activity Audit Telemetry Logs',
-      format: 'CSV',
-      badge: 'Audit Trail',
-      desc: 'Full immutable audit trail with authority, action, details & timestamps.',
-      icon: Activity,
-      color: 'bg-indigo-50 text-indigo-700 border-indigo-200',
-      action: exportAuditLogsCsv,
-    },
-    {
-      id: 'tasks_csv',
-      title: 'Tasks & Milestone Objectives',
-      format: 'CSV',
-      badge: 'Deliverables',
-      desc: 'All task records with assigned representatives, priorities & status.',
-      icon: CheckCircle2,
-      color: 'bg-purple-50 text-purple-700 border-purple-200',
-      action: exportTasksCsv,
-    },
-    {
-      id: 'staff_perf',
-      title: 'Workforce Performance Matrix',
-      format: 'CSV',
-      badge: 'Team Capacity',
-      desc: 'Staff load breakdown: deals assigned, tasks in progress & efficiency %.',
-      icon: Users,
-      color: 'bg-amber-50 text-amber-700 border-amber-200',
-      action: exportStaffCsv,
-    },
-    {
-      id: 'tsv_stream',
-      title: 'Tab-Separated Values Stream',
-      format: 'TSV',
-      badge: 'Data Science',
-      desc: 'Tab-delimited stream optimized for Python, Pandas, R & database ingest.',
-      icon: FileText,
-      color: 'bg-teal-50 text-teal-700 border-teal-200',
-      action: exportCustomerTsv,
-    },
-    {
-      id: 'md_brief',
-      title: 'Executive Markdown Briefing',
-      format: 'MD',
-      badge: 'Notion / Docs',
-      desc: 'Formatted markdown document with KPI tables ready for Notion or GitHub.',
-      icon: FileCode,
-      color: 'bg-rose-50 text-rose-700 border-rose-200',
-      action: exportMarkdownReport,
-    },
-    {
-      id: 'html_report',
-      title: 'Standalone HTML Document',
-      format: 'HTML',
-      badge: 'Web Document',
-      desc: 'Self-contained responsive HTML report with embedded CSS styling.',
-      icon: Globe,
-      color: 'bg-cyan-50 text-cyan-700 border-cyan-200',
-      action: exportHtmlReport,
-    },
-    {
-      id: 'copy_json',
-      title: 'Quick Copy JSON to Clipboard',
-      format: 'CLIPBOARD',
-      badge: 'Instant',
-      desc: 'Copies formatted JSON data string directly to system clipboard.',
-      icon: Copy,
-      color: 'bg-slate-100 text-slate-800 border-slate-300',
-      action: copyJsonToClipboard,
-    },
-  ];
+  // Chart 4 for Staff: Priority Breakdown Doughnut
+  const priorityChartData = {
+    labels: ['High Priority', 'Medium Priority', 'Low Priority'],
+    datasets: [
+      {
+        data: [
+          analytics?.taskPriority?.high || 0,
+          analytics?.taskPriority?.medium || 0,
+          analytics?.taskPriority?.low || 0,
+        ],
+        backgroundColor: ['#F43F5E', '#F59E0B', '#64748B'],
+        borderColor: ['#ffffff', '#ffffff', '#ffffff'],
+        borderWidth: 3,
+        hoverOffset: 6,
+      },
+    ],
+  };
+
+  // Available Export Options
+  const exportOptionsList = isAdmin
+    ? [
+        {
+          id: 'customer_csv',
+          title: 'Customer List',
+          format: 'CSV',
+          desc: 'All customer and lead records with contact details and assignees.',
+          icon: FileSpreadsheet,
+          color: 'bg-emerald-50 text-emerald-700 border-emerald-200',
+          action: exportCustomerCsv,
+        },
+        {
+          id: 'excel_wb',
+          title: 'Excel Workbook',
+          format: 'XLS',
+          desc: 'Formatted Excel spreadsheet of all customer accounts.',
+          icon: Table,
+          color: 'bg-green-50 text-green-700 border-green-200',
+          action: exportExcelWorkbook,
+        },
+        {
+          id: 'tasks_csv',
+          title: 'Tasks List',
+          format: 'CSV',
+          desc: 'All team tasks with status, priority, and assignees.',
+          icon: CheckCircle2,
+          color: 'bg-purple-50 text-purple-700 border-purple-200',
+          action: exportTasksCsv,
+        },
+        {
+          id: 'staff_perf',
+          title: 'Staff Performance',
+          format: 'CSV',
+          desc: 'Team performance breakdown: customers, tasks, and efficiency.',
+          icon: Users,
+          color: 'bg-amber-50 text-amber-700 border-amber-200',
+          action: exportStaffCsv,
+        },
+        {
+          id: 'audit_logs',
+          title: 'Activity Logs',
+          format: 'CSV',
+          desc: 'All recorded activity logs with user, action, and timestamps.',
+          icon: Activity,
+          color: 'bg-indigo-50 text-indigo-700 border-indigo-200',
+          action: exportAuditLogsCsv,
+        },
+        {
+          id: 'md_brief',
+          title: 'Markdown Summary',
+          format: 'MD',
+          desc: 'Formatted markdown document with KPI metrics and staff table.',
+          icon: FileCode,
+          color: 'bg-rose-50 text-rose-700 border-rose-200',
+          action: exportMarkdownReport,
+        },
+        {
+          id: 'html_report',
+          title: 'HTML Report',
+          format: 'HTML',
+          desc: 'Print-ready HTML document with styling.',
+          icon: Globe,
+          color: 'bg-cyan-50 text-cyan-700 border-cyan-200',
+          action: exportHtmlReport,
+        },
+        {
+          id: 'copy_json',
+          title: 'Copy JSON Summary',
+          format: 'CLIPBOARD',
+          desc: 'Copies structured analytics data directly to clipboard.',
+          icon: Copy,
+          color: 'bg-slate-100 text-slate-800 border-slate-300',
+          action: copyJsonToClipboard,
+        },
+      ]
+    : [
+        {
+          id: 'customer_csv',
+          title: 'My Customers',
+          format: 'CSV',
+          desc: 'CSV file containing all customers currently assigned to you.',
+          icon: FileSpreadsheet,
+          color: 'bg-emerald-50 text-emerald-700 border-emerald-200',
+          action: exportCustomerCsv,
+        },
+        {
+          id: 'excel_wb',
+          title: 'My Customers (Excel)',
+          format: 'XLS',
+          desc: 'Excel spreadsheet of your assigned customer accounts.',
+          icon: Table,
+          color: 'bg-green-50 text-green-700 border-green-200',
+          action: exportExcelWorkbook,
+        },
+        {
+          id: 'tasks_csv',
+          title: 'My Tasks',
+          format: 'CSV',
+          desc: 'CSV file of all tasks assigned to you with due dates and status.',
+          icon: CheckCircle2,
+          color: 'bg-purple-50 text-purple-700 border-purple-200',
+          action: exportTasksCsv,
+        },
+        {
+          id: 'audit_logs',
+          title: 'My Activity History',
+          format: 'CSV',
+          desc: 'Log of your recent actions and updates in the workspace.',
+          icon: Activity,
+          color: 'bg-indigo-50 text-indigo-700 border-indigo-200',
+          action: exportAuditLogsCsv,
+        },
+        {
+          id: 'html_report',
+          title: 'Personal HTML Summary',
+          format: 'HTML',
+          desc: 'Printable HTML document of your personal performance.',
+          icon: Globe,
+          color: 'bg-cyan-50 text-cyan-700 border-cyan-200',
+          action: exportHtmlReport,
+        },
+        {
+          id: 'copy_json',
+          title: 'Copy JSON Data',
+          format: 'CLIPBOARD',
+          desc: 'Copies your personal stats snapshot to your clipboard.',
+          icon: Copy,
+          color: 'bg-slate-100 text-slate-800 border-slate-300',
+          action: copyJsonToClipboard,
+        },
+      ];
 
   return (
     <div className="space-y-7 animate-fadeIn pb-12">
-      
       {/* Top Header Bar */}
       <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4 bg-white p-6 rounded-[28px] border border-[#E5E2DC] shadow-xs">
         <div>
-          <h1 className="heading-editorial text-2xl sm:text-3xl text-[#1A1A1A]">
-            {t('intelligence') || 'Intelligence'}
-          </h1>
-          <p className="text-xs text-[#706F6C] mt-1">
-            Real-time pipeline metrics, team throughput velocity, and immutable audit telemetry.
+          <div className="flex items-center gap-3">
+            <h1 className="heading-editorial text-2xl sm:text-3xl text-[#1A1A1A]">
+              {isAdmin ? 'Team Analytics' : 'My Analytics'}
+            </h1>
+            <span className="text-[11px] font-bold text-[#2D3A2D] bg-[#2D3A2D]/10 px-3 py-1 rounded-full border border-[#2D3A2D]/20">
+              {isAdmin ? 'Company Scope' : 'Personal Scope'}
+            </span>
+          </div>
+          <p className="text-xs text-[#706F6C] mt-1.5">
+            {isAdmin
+              ? 'Overview of all customer accounts, team tasks, and staff performance.'
+              : 'Overview of your assigned customers, task progress, and work stats.'}
           </p>
         </div>
 
         {/* Header Action Controls */}
         <div className="flex flex-wrap items-center gap-2.5 w-full lg:w-auto">
-          {/* Live Sync Badge & Refresh */}
+          {/* Refresh Button */}
           <button
             type="button"
             onClick={() => fetchAnalytics(true)}
-            className="px-3.5 py-2 rounded-xl bg-[#F5F3EF] hover:bg-[#eae7e1] border border-[#E5E2DC] text-xs font-bold text-[#2D3A2D] transition flex items-center gap-2"
+            className="px-3.5 py-2 rounded-xl bg-[#FAF9F5] hover:bg-[#eae7e1] border border-[#E5E2DC] text-xs font-bold text-[#2D3A2D] transition flex items-center gap-2"
             title="Refresh analytics data"
           >
-            <RefreshCw className={`w-3.5 h-3.5 text-[#2D3A2D] ${refreshing ? 'animate-spin' : ''}`} />
-            <span className="text-[11px] font-semibold">{refreshing ? 'Syncing...' : 'Live Sync'}</span>
+            <RefreshCw className={`w-3.5 h-3.5 ${refreshing ? 'animate-spin' : ''}`} />
+            <span className="text-[11px] font-semibold">{refreshing ? 'Refreshing...' : 'Refresh'}</span>
           </button>
 
           {/* Time Range Selector */}
@@ -633,33 +688,56 @@ ${(analytics?.logs || []).slice(0, 10).map(l => `| ${l.user_id?.name || 'System'
           <button
             type="button"
             onClick={() => window.print()}
-            className="p-2 rounded-xl border border-[#E5E2DC] bg-white text-[#706F6C] hover:text-[#1A1A1A] hover:bg-[#F5F3EF] transition shadow-xs"
-            title="Print executive summary"
+            className="p-2 rounded-xl border border-[#E5E2DC] bg-white text-[#706F6C] hover:text-[#1A1A1A] hover:bg-[#FAF9F5] transition shadow-xs"
+            title="Print report"
           >
             <Printer className="w-4 h-4" />
           </button>
 
-          {/* Export Suite Hub (10 Options) */}
+          {/* Export Hub Button */}
           <button
             type="button"
             onClick={() => setIsExportModalOpen(true)}
             className="py-2 px-4 rounded-xl bg-[#2D3A2D] text-white text-xs font-bold hover:bg-[#1f291f] transition shadow-sm flex items-center gap-2"
           >
             <Download className="w-3.5 h-3.5 text-emerald-400" />
-            <span>Export Hub</span>
+            <span>Export Data</span>
             <ChevronDown className="w-3 h-3 text-white/60" />
           </button>
         </div>
       </div>
 
-      {/* 4 Executive KPI Stat Cards */}
+      {/* Highlights / Quick Summary Box */}
+      {analytics?.aiInsights?.length > 0 && (
+        <div className="bg-[#FAF9F5] rounded-[24px] p-5 border border-[#E5E2DC] flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+          <div className="flex items-start gap-3">
+            <div className="w-9 h-9 rounded-xl bg-[#2D3A2D] text-white flex items-center justify-center shrink-0 shadow-xs">
+              <Sparkles className="w-4 h-4 text-emerald-400" />
+            </div>
+            <div className="space-y-1">
+              <h4 className="text-xs font-bold text-[#1A1A1A]">
+                {isAdmin ? 'Team Summary' : 'Your Progress Highlights'}
+              </h4>
+              <ul className="text-xs text-[#706F6C] space-y-0.5">
+                {analytics.aiInsights.map((insight, idx) => (
+                  <li key={idx} className="flex items-center gap-2">
+                    <span className="w-1.5 h-1.5 rounded-full bg-[#2D3A2D] shrink-0"></span>
+                    <span>{insight}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 4 Summary Stat Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-5">
-        
-        {/* Stat 1: Total Customer Records */}
+        {/* Stat 1: Customers */}
         <div className="bg-white rounded-[24px] p-5 border border-[#E5E2DC] shadow-xs flex flex-col justify-between hover:shadow-md transition">
           <div className="flex items-center justify-between mb-3">
             <span className="text-[10px] font-bold text-[#706F6C] uppercase tracking-wider">
-              Pipeline Accounts
+              {isAdmin ? 'Total Customers' : 'My Customers'}
             </span>
             <div className="w-9 h-9 rounded-xl bg-emerald-50 text-emerald-700 flex items-center justify-center border border-emerald-100">
               <Users className="w-4 h-4" />
@@ -672,20 +750,20 @@ ${(analytics?.logs || []).slice(0, 10).map(l => `| ${l.user_id?.name || 'System'
             <div className="flex items-center justify-between text-[11px] text-[#706F6C] mt-2 pt-2 border-t border-[#E5E2DC]/60">
               <span>{kpis.activeCount} Active • {kpis.leadsCount} Leads</span>
               <span className="font-bold text-emerald-700 bg-emerald-50 px-1.5 py-0.5 rounded text-[10px]">
-                {kpis.conversionRate}% Rate
+                {kpis.conversionRate}% Active
               </span>
             </div>
           </div>
         </div>
 
-        {/* Stat 2: Operational Velocity */}
+        {/* Stat 2: Tasks */}
         <div className="bg-white rounded-[24px] p-5 border border-[#E5E2DC] shadow-xs flex flex-col justify-between hover:shadow-md transition">
           <div className="flex items-center justify-between mb-3">
             <span className="text-[10px] font-bold text-[#706F6C] uppercase tracking-wider">
-              Objective Throughput
+              {isAdmin ? 'Total Tasks' : 'My Tasks'}
             </span>
-            <div className="w-9 h-9 rounded-xl bg-amber-50 text-amber-700 flex items-center justify-center border border-amber-100">
-              <CheckCircle2 className="w-4 h-4" />
+            <div className="w-9 h-9 rounded-xl bg-blue-50 text-blue-700 flex items-center justify-center border border-blue-100">
+              <Briefcase className="w-4 h-4" />
             </div>
           </div>
           <div>
@@ -693,79 +771,101 @@ ${(analytics?.logs || []).slice(0, 10).map(l => `| ${l.user_id?.name || 'System'
               {kpis.totalTasks}
             </div>
             <div className="flex items-center justify-between text-[11px] text-[#706F6C] mt-2 pt-2 border-t border-[#E5E2DC]/60">
-              <span>{kpis.completedTasks} Done • {kpis.inProgressTasks} In Flight</span>
+              <span>{kpis.completedTasks} Done • {kpis.inProgressTasks} In Progress</span>
+              <span className="font-bold text-blue-700 bg-blue-50 px-1.5 py-0.5 rounded text-[10px]">
+                {kpis.pendingTasks} Pending
+              </span>
+            </div>
+          </div>
+        </div>
+
+        {/* Stat 3: Completion Rate */}
+        <div className="bg-white rounded-[24px] p-5 border border-[#E5E2DC] shadow-xs flex flex-col justify-between hover:shadow-md transition">
+          <div className="flex items-center justify-between mb-3">
+            <span className="text-[10px] font-bold text-[#706F6C] uppercase tracking-wider">
+              {isAdmin ? 'Team Completion Rate' : 'My Completion Rate'}
+            </span>
+            <div className="w-9 h-9 rounded-xl bg-amber-50 text-amber-700 flex items-center justify-center border border-amber-100">
+              <CheckCircle2 className="w-4 h-4" />
+            </div>
+          </div>
+          <div>
+            <div className="text-3xl font-black text-[#1A1A1A] tracking-tight">
+              {kpis.taskCompletionRate}%
+            </div>
+            <div className="flex items-center justify-between text-[11px] text-[#706F6C] mt-2 pt-2 border-t border-[#E5E2DC]/60">
+              <span>{kpis.completedTasks} of {kpis.totalTasks} finished</span>
               <span className="font-bold text-amber-700 bg-amber-50 px-1.5 py-0.5 rounded text-[10px]">
-                {kpis.taskCompletionRate}% Resolved
+                {kpis.taskCompletionRate >= 70 ? 'High' : 'Active'}
               </span>
             </div>
           </div>
         </div>
 
-        {/* Stat 3: Workforce Capacity */}
-        <div className="bg-white rounded-[24px] p-5 border border-[#E5E2DC] shadow-xs flex flex-col justify-between hover:shadow-md transition">
-          <div className="flex items-center justify-between mb-3">
-            <span className="text-[10px] font-bold text-[#706F6C] uppercase tracking-wider">
-              Active Workforce
-            </span>
-            <div className="w-9 h-9 rounded-xl bg-indigo-50 text-indigo-700 flex items-center justify-center border border-indigo-100">
-              <Briefcase className="w-4 h-4" />
-            </div>
-          </div>
-          <div>
-            <div className="text-3xl font-black text-[#1A1A1A] tracking-tight">
-              {kpis.totalStaff} Staff
-            </div>
-            <div className="flex items-center justify-between text-[11px] text-[#706F6C] mt-2 pt-2 border-t border-[#E5E2DC]/60">
-              <span>Avg {(kpis.totalCustomers / Math.max(1, kpis.totalStaff)).toFixed(1)} deals / rep</span>
-              <span className="font-bold text-indigo-700 bg-indigo-50 px-1.5 py-0.5 rounded text-[10px]">
-                100% Active
+        {/* Stat 4: Role-specific stat */}
+        {isAdmin ? (
+          <div className="bg-white rounded-[24px] p-5 border border-[#E5E2DC] shadow-xs flex flex-col justify-between hover:shadow-md transition">
+            <div className="flex items-center justify-between mb-3">
+              <span className="text-[10px] font-bold text-[#706F6C] uppercase tracking-wider">
+                Active Staff
               </span>
+              <div className="w-9 h-9 rounded-xl bg-indigo-50 text-indigo-700 flex items-center justify-center border border-indigo-100">
+                <Users className="w-4 h-4" />
+              </div>
+            </div>
+            <div>
+              <div className="text-3xl font-black text-[#1A1A1A] tracking-tight">
+                {kpis.totalStaff} Staff
+              </div>
+              <div className="flex items-center justify-between text-[11px] text-[#706F6C] mt-2 pt-2 border-t border-[#E5E2DC]/60">
+                <span>Avg {(kpis.totalCustomers / Math.max(1, kpis.totalStaff)).toFixed(1)} customers/rep</span>
+                <span className="font-bold text-indigo-700 bg-indigo-50 px-1.5 py-0.5 rounded text-[10px]">
+                  Team Active
+                </span>
+              </div>
             </div>
           </div>
-        </div>
-
-        {/* Stat 4: System Activity Logs */}
-        <div className="bg-white rounded-[24px] p-5 border border-[#E5E2DC] shadow-xs flex flex-col justify-between hover:shadow-md transition">
-          <div className="flex items-center justify-between mb-3">
-            <span className="text-[10px] font-bold text-[#706F6C] uppercase tracking-wider">
-              Activity History
-            </span>
-            <div className="w-9 h-9 rounded-xl bg-emerald-50 text-emerald-700 flex items-center justify-center border border-emerald-100">
-              <Activity className="w-4 h-4" />
-            </div>
-          </div>
-          <div>
-            <div className="text-3xl font-black text-[#1A1A1A] tracking-tight">
-              {kpis.totalLogs} Logs
-            </div>
-            <div className="flex items-center justify-between text-[11px] text-[#706F6C] mt-2 pt-2 border-t border-[#E5E2DC]/60">
-              <span>Uptime: {kpis.healthScore}%</span>
-              <span className="font-bold text-emerald-700 bg-emerald-50 px-1.5 py-0.5 rounded text-[10px] flex items-center gap-1">
-                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
-                Healthy
+        ) : (
+          <div className="bg-white rounded-[24px] p-5 border border-[#E5E2DC] shadow-xs flex flex-col justify-between hover:shadow-md transition">
+            <div className="flex items-center justify-between mb-3">
+              <span className="text-[10px] font-bold text-[#706F6C] uppercase tracking-wider">
+                Pending Work
               </span>
+              <div className="w-9 h-9 rounded-xl bg-rose-50 text-rose-700 flex items-center justify-center border border-rose-100">
+                <Clock className="w-4 h-4" />
+              </div>
+            </div>
+            <div>
+              <div className="text-3xl font-black text-[#1A1A1A] tracking-tight">
+                {kpis.pendingTasks} Tasks
+              </div>
+              <div className="flex items-center justify-between text-[11px] text-[#706F6C] mt-2 pt-2 border-t border-[#E5E2DC]/60">
+                <span>{kpis.highPriorityTasks || 0} high priority</span>
+                <span className="font-bold text-rose-700 bg-rose-50 px-1.5 py-0.5 rounded text-[10px]">
+                  Needs Focus
+                </span>
+              </div>
             </div>
           </div>
-        </div>
-
+        )}
       </div>
 
       {/* 2x2 Interactive Charts Grid */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 sm:gap-7">
         
-        {/* Chart 1: Entity Distribution Donut */}
+        {/* Chart 1: Customer Status Donut */}
         <div className="bg-white rounded-[28px] p-6 sm:p-7 border border-[#E5E2DC] shadow-xs flex flex-col justify-between">
           <div className="flex justify-between items-center mb-4">
             <div>
               <h3 className="heading-editorial text-lg sm:text-xl text-[#1A1A1A]">
-                {t('entity_distribution') || 'Market Segmentation'}
+                {isAdmin ? 'Customer Status Breakdown' : 'My Customers by Status'}
               </h3>
-              <p className="text-[10px] font-bold text-[#706F6C] uppercase tracking-wider mt-0.5">
-                Customer Lifecycle Pipeline
+              <p className="text-[11px] text-[#706F6C] mt-0.5">
+                {isAdmin ? 'All company leads and active accounts.' : 'Your assigned leads and active accounts.'}
               </p>
             </div>
-            <div className="text-xs font-bold text-[#2D3A2D] bg-[#F5F3EF] px-3 py-1 rounded-full border border-[#E5E2DC]">
-              {kpis.totalCustomers} Accounts
+            <div className="text-xs font-bold text-[#2D3A2D] bg-[#FAF9F5] px-3 py-1 rounded-full border border-[#E5E2DC]">
+              {kpis.totalCustomers} Total
             </div>
           </div>
 
@@ -788,11 +888,10 @@ ${(analytics?.logs || []).slice(0, 10).map(l => `| ${l.user_id?.name || 'System'
                       },
                     },
                   },
-                  cutout: '72%',
+                  cutout: '70%',
                 }}
               />
             )}
-            {/* Center Donut Cutout Badge */}
             {!loading && (
               <div className="absolute top-[42%] left-1/2 -translate-x-1/2 -translate-y-1/2 text-center pointer-events-none">
                 <span className="text-2xl font-black text-[#1A1A1A] block leading-none">
@@ -809,37 +908,37 @@ ${(analytics?.logs || []).slice(0, 10).map(l => `| ${l.user_id?.name || 'System'
             <div className="p-2 rounded-xl bg-amber-50/60 border border-amber-100">
               <span className="text-amber-800 font-bold block">{kpis.leadsCount} Leads</span>
               <span className="text-[10px] text-amber-600">
-                {Math.round((kpis.leadsCount / Math.max(1, kpis.totalCustomers)) * 100)}% of total
+                {Math.round((kpis.leadsCount / Math.max(1, kpis.totalCustomers)) * 100)}%
               </span>
             </div>
             <div className="p-2 rounded-xl bg-emerald-50/60 border border-emerald-100">
               <span className="text-emerald-800 font-bold block">{kpis.activeCount} Active</span>
               <span className="text-[10px] text-emerald-600">
-                {Math.round((kpis.activeCount / Math.max(1, kpis.totalCustomers)) * 100)}% of total
+                {Math.round((kpis.activeCount / Math.max(1, kpis.totalCustomers)) * 100)}%
               </span>
             </div>
             <div className="p-2 rounded-xl bg-slate-50 border border-slate-200">
               <span className="text-slate-800 font-bold block">{kpis.inactiveCount} Inactive</span>
               <span className="text-[10px] text-slate-500">
-                {Math.round((kpis.inactiveCount / Math.max(1, kpis.totalCustomers)) * 100)}% of total
+                {Math.round((kpis.inactiveCount / Math.max(1, kpis.totalCustomers)) * 100)}%
               </span>
             </div>
           </div>
         </div>
 
-        {/* Chart 2: Task Operational Velocity Bar */}
+        {/* Chart 2: Task Status Bar */}
         <div className="bg-white rounded-[28px] p-6 sm:p-7 border border-[#E5E2DC] shadow-xs flex flex-col justify-between">
           <div className="flex justify-between items-center mb-4">
             <div>
               <h3 className="heading-editorial text-lg sm:text-xl text-[#1A1A1A]">
-                {t('operational_velocity') || 'Operational Velocity'}
+                {isAdmin ? 'Task Progress' : 'My Task Progress'}
               </h3>
-              <p className="text-[10px] font-bold text-[#706F6C] uppercase tracking-wider mt-0.5">
-                Objective Milestone Throughput
+              <p className="text-[11px] text-[#706F6C] mt-0.5">
+                {isAdmin ? 'Tasks across pending, in-progress, and completed states.' : 'Your tasks by current status.'}
               </p>
             </div>
-            <div className="text-xs font-bold text-[#2D3A2D] bg-[#F5F3EF] px-3 py-1 rounded-full border border-[#E5E2DC]">
-              {kpis.totalTasks} Objectives
+            <div className="text-xs font-bold text-[#2D3A2D] bg-[#FAF9F5] px-3 py-1 rounded-full border border-[#E5E2DC]">
+              {kpis.totalTasks} Tasks
             </div>
           </div>
 
@@ -878,7 +977,7 @@ ${(analytics?.logs || []).slice(0, 10).map(l => `| ${l.user_id?.name || 'System'
             </div>
             <div className="flex items-center gap-1.5">
               <span className="w-2.5 h-2.5 rounded-full bg-blue-500"></span>
-              <span>In Flight: <strong>{kpis.inProgressTasks}</strong></span>
+              <span>In Progress: <strong>{kpis.inProgressTasks}</strong></span>
             </div>
             <div className="flex items-center gap-1.5">
               <span className="w-2.5 h-2.5 rounded-full bg-emerald-500"></span>
@@ -887,20 +986,20 @@ ${(analytics?.logs || []).slice(0, 10).map(l => `| ${l.user_id?.name || 'System'
           </div>
         </div>
 
-        {/* Chart 3: 6-Month Pipeline & Velocity Trajectory */}
+        {/* Chart 3: 6-Month Monthly Trend */}
         <div className="bg-white rounded-[28px] p-6 sm:p-7 border border-[#E5E2DC] shadow-xs flex flex-col justify-between">
           <div className="flex justify-between items-center mb-4">
             <div>
               <h3 className="heading-editorial text-lg sm:text-xl text-[#1A1A1A]">
-                Historical Growth Trajectory
+                {isAdmin ? 'Monthly Growth' : 'My Monthly Progress'}
               </h3>
-              <p className="text-[10px] font-bold text-[#706F6C] uppercase tracking-wider mt-0.5">
-                Pipeline & Task Resolution Progression
+              <p className="text-[11px] text-[#706F6C] mt-0.5">
+                {isAdmin ? 'Customers and completed tasks over the last 6 months.' : 'Customers assigned and tasks resolved over 6 months.'}
               </p>
             </div>
             <div className="flex items-center gap-1.5 text-xs font-bold text-emerald-700 bg-emerald-50 px-3 py-1 rounded-full border border-emerald-200">
               <TrendingUp className="w-3.5 h-3.5" />
-              <span>+34% Growth</span>
+              <span>Steady</span>
             </div>
           </div>
 
@@ -940,80 +1039,137 @@ ${(analytics?.logs || []).slice(0, 10).map(l => `| ${l.user_id?.name || 'System'
           </div>
 
           <div className="pt-3 border-t border-[#E5E2DC]/60 text-[11px] text-[#706F6C] flex justify-between items-center">
-            <span>Aggregated over the previous 6 reporting cycles</span>
-            <span className="font-semibold text-[#1A1A1A]">Steady Velocity</span>
+            <span>Recorded over the previous 6 months</span>
+            <span className="font-semibold text-[#1A1A1A]">{kpis.completedTasks} tasks resolved</span>
           </div>
         </div>
 
-        {/* Chart 4: Staff Workload & Performance Allocation */}
-        <div className="bg-white rounded-[28px] p-6 sm:p-7 border border-[#E5E2DC] shadow-xs flex flex-col justify-between">
-          <div className="flex justify-between items-center mb-4">
-            <div>
-              <h3 className="heading-editorial text-lg sm:text-xl text-[#1A1A1A]">
-                Workforce Resource Matrix
-              </h3>
-              <p className="text-[10px] font-bold text-[#706F6C] uppercase tracking-wider mt-0.5">
-                Staff Account & Task Load Balancing
-              </p>
-            </div>
-            <div className="text-xs font-bold text-[#2D3A2D] bg-[#F5F3EF] px-3 py-1 rounded-full border border-[#E5E2DC]">
-              {analytics?.staffPerformance?.length || 3} Representatives
-            </div>
-          </div>
-
-          <div className="space-y-3.5 my-auto py-2">
-            {analytics?.staffPerformance?.length > 0 ? (
-              analytics.staffPerformance.map((staff, idx) => (
-                <div
-                  key={staff.id || idx}
-                  className="p-3.5 rounded-2xl bg-[#FBFBF9] border border-[#E5E2DC] hover:border-[#2D3A2D] transition space-y-2"
-                >
-                  <div className="flex items-center justify-between text-xs">
-                    <div className="flex items-center gap-2">
-                      <div className="w-7 h-7 rounded-lg bg-[#2D3A2D] text-white flex items-center justify-center font-bold text-[10px]">
-                        {staff.name.charAt(0)}
-                      </div>
-                      <div>
-                        <span className="font-bold text-[#1A1A1A] block">{staff.name}</span>
-                        <span className="text-[10px] text-[#706F6C]">{staff.email}</span>
-                      </div>
-                    </div>
-                    <div className="text-right">
-                      <span className="font-mono text-xs font-bold text-[#2D3A2D]">
-                        {staff.customers} Leads • {staff.tasks} Tasks
-                      </span>
-                      <span className="text-[10px] text-emerald-700 font-semibold block">
-                        {staff.efficiency || 100}% Efficiency
-                      </span>
-                    </div>
-                  </div>
-
-                  {/* Allocation Visual Bar */}
-                  <div className="w-full h-1.5 bg-[#E5E2DC] rounded-full overflow-hidden flex">
-                    <div
-                      style={{ width: `${Math.min(100, staff.customers * 25)}%` }}
-                      className="bg-[#2D3A2D] h-full"
-                      title="Customer Lead Share"
-                    ></div>
-                    <div
-                      style={{ width: `${Math.min(100, staff.tasks * 25)}%` }}
-                      className="bg-amber-500 h-full"
-                      title="Task Share"
-                    ></div>
-                  </div>
-                </div>
-              ))
-            ) : (
-              <div className="text-center py-8 text-xs text-[#706F6C]">
-                No staff members currently configured.
+        {/* Chart 4: Role-specific (Admin: Staff Performance / Staff: Task Priority Breakdown) */}
+        {isAdmin ? (
+          <div className="bg-white rounded-[28px] p-6 sm:p-7 border border-[#E5E2DC] shadow-xs flex flex-col justify-between">
+            <div className="flex justify-between items-center mb-4">
+              <div>
+                <h3 className="heading-editorial text-lg sm:text-xl text-[#1A1A1A]">
+                  Staff Performance
+                </h3>
+                <p className="text-[11px] text-[#706F6C] mt-0.5">
+                  Customers and tasks assigned to each staff member.
+                </p>
               </div>
-            )}
-          </div>
+              <div className="text-xs font-bold text-[#2D3A2D] bg-[#FAF9F5] px-3 py-1 rounded-full border border-[#E5E2DC]">
+                {analytics?.staffPerformance?.length || 0} Staff
+              </div>
+            </div>
 
-          <div className="pt-3 border-t border-[#E5E2DC]/60 text-[11px] text-[#706F6C] flex justify-between items-center">
-            <span>Balanced workload distribution across field team</span>
+            <div className="space-y-3 my-auto py-2 overflow-y-auto max-h-64">
+              {analytics?.staffPerformance?.length > 0 ? (
+                analytics.staffPerformance.map((staff, idx) => (
+                  <div
+                    key={staff.id || idx}
+                    className="p-3.5 rounded-2xl bg-[#FAF9F5] border border-[#E5E2DC] hover:border-[#2D3A2D] transition space-y-2"
+                  >
+                    <div className="flex items-center justify-between text-xs">
+                      <div className="flex items-center gap-2">
+                        <div className="w-7 h-7 rounded-lg bg-[#2D3A2D] text-white flex items-center justify-center font-bold text-[10px]">
+                          {staff.name.charAt(0)}
+                        </div>
+                        <div>
+                          <span className="font-bold text-[#1A1A1A] block">{staff.name}</span>
+                          <span className="text-[10px] text-[#706F6C]">{staff.email}</span>
+                        </div>
+                      </div>
+                      <div className="text-right">
+                        <span className="font-mono text-xs font-bold text-[#2D3A2D]">
+                          {staff.customers} Customers • {staff.tasks} Tasks
+                        </span>
+                        <span className="text-[10px] text-emerald-700 font-semibold block">
+                          {staff.efficiency || 100}% Efficiency
+                        </span>
+                      </div>
+                    </div>
+
+                    <div className="w-full h-1.5 bg-[#E5E2DC] rounded-full overflow-hidden flex">
+                      <div
+                        style={{ width: `${Math.min(100, staff.customers * 20)}%` }}
+                        className="bg-[#2D3A2D] h-full"
+                        title="Customers"
+                      ></div>
+                      <div
+                        style={{ width: `${Math.min(100, staff.tasks * 20)}%` }}
+                        className="bg-amber-500 h-full"
+                        title="Tasks"
+                      ></div>
+                    </div>
+                  </div>
+                ))
+              ) : (
+                <div className="text-center py-8 text-xs text-[#706F6C]">
+                  No staff members currently registered.
+                </div>
+              )}
+            </div>
+
+            <div className="pt-3 border-t border-[#E5E2DC]/60 text-[11px] text-[#706F6C] flex justify-between items-center">
+              <span>Workload distribution across team members</span>
+            </div>
           </div>
-        </div>
+        ) : (
+          <div className="bg-white rounded-[28px] p-6 sm:p-7 border border-[#E5E2DC] shadow-xs flex flex-col justify-between">
+            <div className="flex justify-between items-center mb-4">
+              <div>
+                <h3 className="heading-editorial text-lg sm:text-xl text-[#1A1A1A]">
+                  Task Priority Breakdown
+                </h3>
+                <p className="text-[11px] text-[#706F6C] mt-0.5">
+                  High, medium, and low priority tasks in your queue.
+                </p>
+              </div>
+              <div className="text-xs font-bold text-[#2D3A2D] bg-[#FAF9F5] px-3 py-1 rounded-full border border-[#E5E2DC]">
+                Priority View
+              </div>
+            </div>
+
+            <div className="h-64 flex items-center justify-center relative my-2">
+              {loading ? (
+                <div className="w-8 h-8 border-3 border-[#2D3A2D] border-t-transparent rounded-full animate-spin"></div>
+              ) : (
+                <Doughnut
+                  data={priorityChartData}
+                  options={{
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                      legend: {
+                        position: 'bottom',
+                        labels: {
+                          boxWidth: 12,
+                          padding: 16,
+                          font: { family: 'Plus Jakarta Sans', size: 11, weight: 600 },
+                        },
+                      },
+                    },
+                    cutout: '70%',
+                  }}
+                />
+              )}
+            </div>
+
+            <div className="grid grid-cols-3 gap-2 pt-3 border-t border-[#E5E2DC]/60 text-center text-[11px]">
+              <div className="p-2 rounded-xl bg-rose-50/60 border border-rose-100">
+                <span className="text-rose-800 font-bold block">{kpis.highPriorityTasks || 0} High</span>
+                <span className="text-[10px] text-rose-600">Urgent attention</span>
+              </div>
+              <div className="p-2 rounded-xl bg-amber-50/60 border border-amber-100">
+                <span className="text-amber-800 font-bold block">{kpis.mediumPriorityTasks || 0} Medium</span>
+                <span className="text-[10px] text-amber-600">Standard priority</span>
+              </div>
+              <div className="p-2 rounded-xl bg-slate-50 border border-slate-200">
+                <span className="text-slate-800 font-bold block">{kpis.lowPriorityTasks || 0} Low</span>
+                <span className="text-[10px] text-slate-500">Normal queue</span>
+              </div>
+            </div>
+          </div>
+        )}
 
       </div>
 
@@ -1025,20 +1181,22 @@ ${(analytics?.logs || []).slice(0, 10).map(l => `| ${l.user_id?.name || 'System'
           <div>
             <div className="flex items-center gap-2">
               <h3 className="heading-editorial text-xl text-[#1A1A1A]">
-                {t('system_pulse') || 'Activity History'}
+                {isAdmin ? 'Activity History' : 'My Recent Activity'}
               </h3>
-              <span className="text-[9px] font-bold text-[#706F6C] bg-white px-2 py-0.5 rounded-full border border-[#E5E2DC] uppercase tracking-wider font-mono">
-                {filteredLogs.length} Events Logged
+              <span className="text-[9px] font-bold text-[#706F6C] bg-white px-2 py-0.5 rounded-full border border-[#E5E2DC] font-mono">
+                {filteredLogs.length} Events
               </span>
             </div>
-            <p className="text-[#706F6C] text-[10px] font-bold uppercase tracking-widest mt-0.5">
-              {t('activity_sequence') || 'Recent actions and activity logs'}
+            <p className="text-[#706F6C] text-[11px] mt-0.5">
+              {isAdmin
+                ? 'Recent actions performed across the workspace.'
+                : 'Actions and updates you performed recently.'}
             </p>
           </div>
 
           <div className="flex flex-wrap items-center gap-3 w-full md:w-auto">
             {/* Search Input */}
-            <div className="relative flex-1 md:w-64">
+            <div className="relative flex-1 md:w-60">
               <Search className="w-3.5 h-3.5 text-[#706F6C] absolute left-3 top-3" />
               <input
                 type="text"
@@ -1047,7 +1205,7 @@ ${(analytics?.logs || []).slice(0, 10).map(l => `| ${l.user_id?.name || 'System'
                   setLogSearch(e.target.value);
                   setCurrentPage(1);
                 }}
-                placeholder="Search activity logs..."
+                placeholder="Search activity..."
                 className="w-full bg-white border border-[#E5E2DC] rounded-xl pl-8 pr-3 py-1.5 text-xs text-[#1A1A1A] outline-none focus:border-[#2D3A2D] transition shadow-2xs placeholder:text-[#706F6C]/60"
               />
             </div>
@@ -1112,7 +1270,7 @@ ${(analytics?.logs || []).slice(0, 10).map(l => `| ${l.user_id?.name || 'System'
                 className="text-[10px] font-bold text-rose-700 hover:text-white uppercase tracking-wider px-3 py-1.5 border border-rose-200 rounded-xl hover:bg-rose-600 transition flex items-center gap-1.5 bg-rose-50/50"
               >
                 <Trash2 className="w-3 h-3" />
-                <span>{t('purge_sequence') || 'Clear History'}</span>
+                <span>Clear History</span>
               </button>
             )}
           </div>
@@ -1123,41 +1281,43 @@ ${(analytics?.logs || []).slice(0, 10).map(l => `| ${l.user_id?.name || 'System'
           <table className="w-full text-left border-collapse">
             <thead>
               <tr className="border-b border-[#E5E2DC] bg-[#FAF9F5]/70 text-[10px] font-bold text-[#706F6C] uppercase tracking-wider">
-                <th className="px-6 py-4">{t('authority') || 'User'}</th>
-                <th className="px-6 py-4">{t('operation') || 'Action'}</th>
-                <th className="px-6 py-4">{t('parameter') || 'Details'}</th>
-                <th className="px-6 py-4 text-right">{t('timestamp') || 'Time'}</th>
+                {isAdmin && <th className="px-6 py-4">User</th>}
+                <th className="px-6 py-4">Action</th>
+                <th className="px-6 py-4">Details</th>
+                <th className="px-6 py-4 text-right">Time</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-[#E5E2DC]/60 text-xs">
               {paginatedLogs.length > 0 ? (
                 paginatedLogs.map((log) => (
                   <tr key={log._id} className="hover:bg-[#FAF9F5] transition-colors">
-                    {/* Authority */}
-                    <td className="px-6 py-3.5">
-                      <div className="flex items-center gap-2.5">
-                        <div className="w-7 h-7 rounded-lg bg-[#2D3A2D] text-white flex items-center justify-center font-bold text-[10px] shadow-xs">
-                          {log.user_id?.name ? log.user_id.name.charAt(0) : 'S'}
+                    {/* User column (Admin view) */}
+                    {isAdmin && (
+                      <td className="px-6 py-3.5">
+                        <div className="flex items-center gap-2.5">
+                          <div className="w-7 h-7 rounded-lg bg-[#2D3A2D] text-white flex items-center justify-center font-bold text-[10px] shadow-xs">
+                            {log.user_id?.name ? log.user_id.name.charAt(0) : 'S'}
+                          </div>
+                          <div>
+                            <span className="font-semibold text-[#1A1A1A] block leading-tight">
+                              {log.user_id?.name || 'System'}
+                            </span>
+                            <span className="text-[9px] uppercase font-bold text-[#706F6C]">
+                              {log.user_id?.role || 'Service'}
+                            </span>
+                          </div>
                         </div>
-                        <div>
-                          <span className="font-semibold text-[#1A1A1A] block leading-tight">
-                            {log.user_id?.name || 'System'}
-                          </span>
-                          <span className="text-[9px] uppercase font-bold text-[#706F6C]">
-                            {log.user_id?.role || 'Service'}
-                          </span>
-                        </div>
-                      </div>
-                    </td>
+                      </td>
+                    )}
 
-                    {/* Operation */}
+                    {/* Action */}
                     <td className="px-6 py-3.5">
                       <span className={`inline-block px-2.5 py-0.5 rounded-full text-[11px] font-bold border ${getActionBadgeStyle(log.action)}`}>
                         {log.action}
                       </span>
                     </td>
 
-                    {/* Parameter / Context */}
+                    {/* Details */}
                     <td className="px-6 py-3.5 text-[#1A1A1A] font-medium max-w-md truncate">
                       <span className="text-[#706F6C]">{log.description || 'N/A'}</span>
                     </td>
@@ -1172,9 +1332,9 @@ ${(analytics?.logs || []).slice(0, 10).map(l => `| ${l.user_id?.name || 'System'
                 ))
               ) : (
                 <tr>
-                  <td colSpan={4} className="p-12 text-center text-[#706F6C] space-y-2">
+                  <td colSpan={isAdmin ? 4 : 3} className="p-12 text-center text-[#706F6C] space-y-2">
                     <Activity className="w-8 h-8 text-[#706F6C]/40 mx-auto" />
-                    <p className="text-xs font-semibold">No activity telemetry records matching your filter.</p>
+                    <p className="text-xs font-semibold">No activity records matching your search.</p>
                   </td>
                 </tr>
               )}
@@ -1196,7 +1356,7 @@ ${(analytics?.logs || []).slice(0, 10).map(l => `| ${l.user_id?.name || 'System'
                 type="button"
                 onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
                 disabled={currentPage === 1}
-                className="p-1.5 rounded-lg border border-[#E5E2DC] bg-white hover:bg-[#F5F3EF] disabled:opacity-40 disabled:cursor-not-allowed transition"
+                className="p-1.5 rounded-lg border border-[#E5E2DC] bg-white hover:bg-[#FAF9F5] disabled:opacity-40 disabled:cursor-not-allowed transition"
               >
                 <ChevronLeft className="w-4 h-4" />
               </button>
@@ -1207,7 +1367,7 @@ ${(analytics?.logs || []).slice(0, 10).map(l => `| ${l.user_id?.name || 'System'
                 type="button"
                 onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
                 disabled={currentPage === totalPages}
-                className="p-1.5 rounded-lg border border-[#E5E2DC] bg-white hover:bg-[#F5F3EF] disabled:opacity-40 disabled:cursor-not-allowed transition"
+                className="p-1.5 rounded-lg border border-[#E5E2DC] bg-white hover:bg-[#FAF9F5] disabled:opacity-40 disabled:cursor-not-allowed transition"
               >
                 <ChevronRight className="w-4 h-4" />
               </button>
@@ -1217,26 +1377,19 @@ ${(analytics?.logs || []).slice(0, 10).map(l => `| ${l.user_id?.name || 'System'
 
       </div>
 
-      {/* ---------------------------------------------------- */}
-      {/* 10-FORMAT ENTERPRISE EXPORT MODAL                    */}
-      {/* ---------------------------------------------------- */}
+      {/* Export Modal */}
       {isExportModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4 animate-fadeIn">
-          <div className="bg-white w-full max-w-3xl rounded-[32px] border border-[#E5E2DC] shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
+          <div className="bg-white w-full max-w-2xl rounded-[32px] border border-[#E5E2DC] shadow-2xl overflow-hidden flex flex-col max-h-[85vh]">
             
             {/* Modal Header */}
             <div className="p-6 bg-[#FAF9F5] border-b border-[#E5E2DC] flex items-center justify-between">
               <div>
-                <div className="flex items-center gap-2">
-                  <h3 className="heading-editorial text-2xl text-[#1A1A1A]">
-                    Export & Telemetry Hub
-                  </h3>
-                  <span className="text-[10px] font-extrabold uppercase bg-[#2D3A2D] text-white px-2.5 py-0.5 rounded-full">
-                    10 Available Formats
-                  </span>
-                </div>
+                <h3 className="heading-editorial text-2xl text-[#1A1A1A]">
+                  {isAdmin ? 'Export Analytics Data' : 'Export My Data'}
+                </h3>
                 <p className="text-xs text-[#706F6C] mt-0.5">
-                  Select your preferred data format to download CRM records, audit telemetry, or team performance.
+                  Choose a format to download your CRM records and reports.
                 </p>
               </div>
 
@@ -1249,8 +1402,8 @@ ${(analytics?.logs || []).slice(0, 10).map(l => `| ${l.user_id?.name || 'System'
               </button>
             </div>
 
-            {/* Modal Body: 10 Export Cards Grid */}
-            <div className="p-6 overflow-y-auto grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+            {/* Modal Body: Grid of Options */}
+            <div className="p-6 overflow-y-auto grid grid-cols-1 sm:grid-cols-2 gap-3">
               {exportOptionsList.map((opt) => {
                 const Icon = opt.icon;
                 return (
@@ -1266,14 +1419,9 @@ ${(analytics?.logs || []).slice(0, 10).map(l => `| ${l.user_id?.name || 'System'
                         <div className={`p-2 rounded-xl border ${opt.color}`}>
                           <Icon className="w-4 h-4" />
                         </div>
-                        <div className="flex items-center gap-1.5">
-                          <span className="text-[9px] font-bold text-[#706F6C] bg-[#F5F3EF] px-2 py-0.5 rounded-full">
-                            {opt.badge}
-                          </span>
-                          <span className="text-[10px] font-mono font-black text-[#2D3A2D] bg-[#2D3A2D]/10 px-2 py-0.5 rounded">
-                            .{opt.format.toLowerCase()}
-                          </span>
-                        </div>
+                        <span className="text-[10px] font-mono font-bold text-[#2D3A2D] bg-[#2D3A2D]/10 px-2 py-0.5 rounded">
+                          .{opt.format.toLowerCase()}
+                        </span>
                       </div>
 
                       <h4 className="text-xs font-bold text-[#1A1A1A] group-hover:text-[#2D3A2D] transition">
@@ -1286,7 +1434,7 @@ ${(analytics?.logs || []).slice(0, 10).map(l => `| ${l.user_id?.name || 'System'
 
                     <div className="pt-3 mt-3 border-t border-[#E5E2DC]/60 flex items-center justify-between text-[11px] font-bold text-[#2D3A2D]">
                       <span className="group-hover:underline">
-                        {opt.id === 'copy_json' ? 'Copy to Clipboard' : 'Download File'}
+                        {opt.id === 'copy_json' ? 'Copy Data' : 'Download File'}
                       </span>
                       <Download className="w-3.5 h-3.5 group-hover:translate-y-0.5 transition-transform" />
                     </div>
@@ -1296,16 +1444,13 @@ ${(analytics?.logs || []).slice(0, 10).map(l => `| ${l.user_id?.name || 'System'
             </div>
 
             {/* Modal Footer */}
-            <div className="p-4 bg-[#FAF9F5] border-t border-[#E5E2DC] flex justify-between items-center text-xs text-[#706F6C]">
-              <span className="text-[11px]">
-                🔒 256-Bit SSL Encrypted Enterprise Telemetry Export
-              </span>
+            <div className="p-4 bg-[#FAF9F5] border-t border-[#E5E2DC] flex justify-end items-center">
               <button
                 type="button"
                 onClick={() => setIsExportModalOpen(false)}
-                className="py-2 px-5 rounded-xl border border-[#E5E2DC] bg-white text-xs font-bold text-[#1A1A1A] hover:bg-[#F5F3EF] transition"
+                className="py-2 px-5 rounded-xl border border-[#E5E2DC] bg-white text-xs font-bold text-[#1A1A1A] hover:bg-[#FAF9F5] transition"
               >
-                Close Hub
+                Close
               </button>
             </div>
 
@@ -1315,7 +1460,7 @@ ${(analytics?.logs || []).slice(0, 10).map(l => `| ${l.user_id?.name || 'System'
 
       {/* Floating Notification Toast */}
       {toastMessage && (
-        <div className="fixed bottom-6 right-6 z-50 bg-[#0C2340] text-white px-5 py-3 rounded-2xl shadow-2xl border border-white/20 text-xs font-bold flex items-center gap-2.5 animate-fadeIn">
+        <div className="fixed bottom-6 right-6 z-50 bg-[#2D3A2D] text-white px-5 py-3 rounded-2xl shadow-2xl border border-white/20 text-xs font-bold flex items-center gap-2.5 animate-fadeIn">
           <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
           <span>{toastMessage}</span>
         </div>
@@ -1327,7 +1472,7 @@ ${(analytics?.logs || []).slice(0, 10).map(l => `| ${l.user_id?.name || 'System'
         onClose={() => setIsPurgeModalOpen(false)}
         onConfirm={handlePurgeLogs}
         title="Clear Activity History?"
-        message="Are you sure you want to clear all activity logs? This will permanently delete the recorded history."
+        message="Are you sure you want to clear all activity logs? This will delete the recorded history."
         confirmText="Clear History"
         isDestructive={true}
       />

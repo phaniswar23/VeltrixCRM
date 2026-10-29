@@ -14,6 +14,8 @@ import CustomersPage from './pages/CustomersPage.jsx';
 import TasksPage from './pages/TasksPage.jsx';
 import StaffPage from './pages/StaffPage.jsx';
 import AnalyticsPage from './pages/AnalyticsPage.jsx';
+import PipelinePage from './pages/PipelinePage.jsx';
+import ActivityPage from './pages/ActivityPage.jsx';
 
 import Sidebar from './components/Sidebar.jsx';
 import Topbar from './components/Topbar.jsx';
@@ -80,8 +82,10 @@ const App = () => {
         <Route index element={<Navigate to="/admin/dashboard" replace />} />
         <Route path="dashboard" element={<AdminDashboard />} />
         <Route path="customers" element={<CustomersPage />} />
+        <Route path="pipeline" element={<PipelinePage />} />
         <Route path="staff" element={<StaffPage />} />
         <Route path="tasks" element={<TasksPage />} />
+        <Route path="activity" element={<ActivityPage />} />
         <Route path="analytics" element={<AnalyticsPage />} />
       </Route>
 

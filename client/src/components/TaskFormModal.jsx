@@ -14,6 +14,7 @@ const TaskFormModal = ({ isOpen, onClose, taskToEdit, staffList, customerList, o
     assigned_to: '',
     customer_id: '',
     status: 'pending',
+    priority: 'medium',
     due_date: '',
   });
   const [submitting, setSubmitting] = useState(false);
@@ -27,6 +28,7 @@ const TaskFormModal = ({ isOpen, onClose, taskToEdit, staffList, customerList, o
         assigned_to: taskToEdit.assigned_to?._id || taskToEdit.assigned_to || (isAdmin ? '' : user?._id || ''),
         customer_id: taskToEdit.customer_id?._id || taskToEdit.customer_id || '',
         status: taskToEdit.status || 'pending',
+        priority: taskToEdit.priority || 'medium',
         due_date: taskToEdit.due_date ? taskToEdit.due_date.substring(0, 10) : '',
       });
     } else {
@@ -36,6 +38,7 @@ const TaskFormModal = ({ isOpen, onClose, taskToEdit, staffList, customerList, o
         assigned_to: isAdmin ? (staffList?.[0]?._id || '') : (user?._id || ''),
         customer_id: '',
         status: 'pending',
+        priority: 'medium',
         due_date: '',
       });
     }
@@ -78,7 +81,7 @@ const TaskFormModal = ({ isOpen, onClose, taskToEdit, staffList, customerList, o
               {taskToEdit ? t('edit_task') : t('add_task')}
             </h3>
             <p className="text-[10px] font-bold text-[#706F6C] uppercase tracking-widest mt-0.5">
-              Operational Objectives
+              Task Details
             </p>
           </div>
           <button
@@ -175,7 +178,7 @@ const TaskFormModal = ({ isOpen, onClose, taskToEdit, staffList, customerList, o
             </div>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
             <div>
               <label className="block text-[10px] font-bold text-[#706F6C] uppercase tracking-widest mb-2">
                 {t('status')}
@@ -188,6 +191,21 @@ const TaskFormModal = ({ isOpen, onClose, taskToEdit, staffList, customerList, o
                 <option value="pending">{t('pending')}</option>
                 <option value="in_progress">{t('in_progress')}</option>
                 <option value="completed">{t('completed')}</option>
+              </select>
+            </div>
+
+            <div>
+              <label className="block text-[10px] font-bold text-[#706F6C] uppercase tracking-widest mb-2">
+                Priority
+              </label>
+              <select
+                value={formData.priority}
+                onChange={(e) => setFormData({ ...formData, priority: e.target.value })}
+                className="w-full bg-[#F5F3EF] border border-[#E5E2DC] rounded-xl px-4 py-3 text-xs font-medium focus:border-[#2D3A2D] outline-none transition cursor-pointer"
+              >
+                <option value="low">Low</option>
+                <option value="medium">Medium</option>
+                <option value="high">High</option>
               </select>
             </div>
 

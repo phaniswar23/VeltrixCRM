@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import api from '../services/api.js';
 import { useLanguage } from '../context/LanguageContext.jsx';
 import StaffFormModal from '../components/StaffFormModal.jsx';
@@ -8,13 +8,16 @@ import {
   Search,
   Plus,
   Mail,
-  Shield,
   Eye,
   Edit2,
   Trash2,
   Users,
   CheckSquare,
+  Briefcase,
+  TrendingUp,
   X,
+  UserCheck,
+  ChevronRight,
 } from 'lucide-react';
 
 const StaffPage = () => {
@@ -23,9 +26,11 @@ const StaffPage = () => {
   const [staffList, setStaffList] = useState([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
+  const [filter, setFilter] = useState('all'); // 'all' | 'with_customers' | 'with_tasks'
 
   // Modals
   const [inspectStaff, setInspectStaff] = useState(null);
+  const [modalTab, setModalTab] = useState('customers'); // 'customers' | 'tasks' | 'overview'
   const [formStaff, setFormStaff] = useState(null);
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [deleteId, setDeleteId] = useState(null);
@@ -63,73 +68,202 @@ const StaffPage = () => {
       await api.delete(`/staff/${deleteId}`);
       fetchStaff();
     } catch (err) {
-      console.error('Failed to deauthorize member', err);
+      console.error('Failed to remove member', err);
     } finally {
       setDeleteId(null);
     }
   };
 
+  // Live KPI metric summaries calculated from actual data
+  const totalStaff = staffList.length;
+  const totalAssignedCustomers = useMemo(
+    () => staffList.reduce((sum, s) => sum + (s.customers_count || 0), 0),
+    [staffList]
+  );
+  const totalAssignedTasks = useMemo(
+    () => staffList.reduce((sum, s) => sum + (s.tasks_count || 0), 0),
+    [staffList]
+  );
+  const avgTasksPerStaff = totalStaff > 0 ? (totalAssignedTasks / totalStaff).toFixed(1) : 0;
+
+  // Filtered staff list based on active tab
+  const filteredStaff = useMemo(() => {
+    return staffList.filter((m) => {
+      if (filter === 'with_customers') return (m.customers_count || 0) > 0;
+      if (filter === 'with_tasks') return (m.tasks_count || 0) > 0;
+      return true;
+    });
+  }, [staffList, filter]);
+
   return (
-    <div className="space-y-8 animate-fadeIn">
-      {/* Header */}
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
+    <div className="space-y-7 animate-fadeIn pb-12">
+      {/* Top Header Bar */}
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-white p-6 rounded-[28px] border border-[#E5E2DC] shadow-xs">
         <div>
-          <h1 className="heading-editorial text-3xl sm:text-4xl">{t('manage_staff')}</h1>
-          <p className="text-xs text-[#706F6C] mt-1">{t('orchestrate_team_desc')}</p>
+          <div className="flex items-center gap-3">
+            <h1 className="heading-editorial text-2xl sm:text-3xl text-[#1A1A1A]">
+              Staff Management
+            </h1>
+            <span className="px-3 py-1 rounded-full text-xs font-bold bg-[#2D3A2D]/10 text-[#2D3A2D]">
+              {totalStaff} Members
+            </span>
+          </div>
+          <p className="text-xs text-[#706F6C] mt-1">
+            Team accounts, customer assignments, and workload tracking.
+          </p>
         </div>
 
-        <div className="flex items-center gap-3 w-full md:w-auto">
-          <form onSubmit={handleSearchSubmit} className="relative flex-1 sm:w-64">
-            <input
-              type="text"
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              placeholder={t('search_personnel')}
-              className="w-full bg-white border border-[#E5E2DC] rounded-2xl pl-4 pr-10 py-2.5 text-xs font-bold uppercase tracking-wider focus:border-[#2D3A2D] outline-none shadow-sm"
-            />
-            <button
-              type="submit"
-              className="absolute right-3.5 top-3 text-[#706F6C] hover:text-[#2D3A2D]"
-            >
-              <Search className="w-4 h-4" />
-            </button>
-          </form>
+        <button
+          onClick={() => {
+            setFormStaff(null);
+            setIsFormOpen(true);
+          }}
+          className="btn-primary-veltrix !py-2.5 !px-5 text-xs font-bold flex items-center gap-2 shadow-sm"
+        >
+          <Plus className="w-4 h-4" />
+          <span>Add Member</span>
+        </button>
+      </div>
 
-          {search && (
-            <button
-              onClick={handleClearSearch}
-              className="p-2 text-[#706F6C] hover:text-[#9B5A46] transition"
-              title="Clear Search"
-            >
-              <X className="w-5 h-5" />
-            </button>
-          )}
+      {/* 4 Summary Stat Cards */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        {/* Total Members */}
+        <div className="bg-white rounded-2xl p-5 border border-[#E5E2DC] shadow-xs flex items-center justify-between hover:shadow-md transition">
+          <div>
+            <p className="text-[11px] font-bold text-[#706F6C] uppercase tracking-wider">
+              Total Staff
+            </p>
+            <h3 className="text-2xl font-bold text-[#1A1A1A] mt-1">{totalStaff}</h3>
+            <p className="text-[11px] text-[#706F6C] mt-0.5">Active team members</p>
+          </div>
+          <div className="w-11 h-11 rounded-xl bg-[#2D3A2D]/10 text-[#2D3A2D] flex items-center justify-center">
+            <Users className="w-5 h-5" />
+          </div>
+        </div>
 
-          <button
-            onClick={() => {
-              setFormStaff(null);
-              setIsFormOpen(true);
-            }}
-            className="btn-primary-veltrix !py-2.5 !px-4 text-xs font-bold uppercase tracking-wider flex items-center gap-2"
-          >
-            <Plus className="w-4 h-4" />
-            <span>{t('add_member')}</span>
-          </button>
+        {/* Managed Customers */}
+        <div className="bg-white rounded-2xl p-5 border border-[#E5E2DC] shadow-xs flex items-center justify-between hover:shadow-md transition">
+          <div>
+            <p className="text-[11px] font-bold text-[#706F6C] uppercase tracking-wider">
+              Managed Customers
+            </p>
+            <h3 className="text-2xl font-bold text-[#1A1A1A] mt-1">{totalAssignedCustomers}</h3>
+            <p className="text-[11px] text-[#706F6C] mt-0.5">Assigned accounts</p>
+          </div>
+          <div className="w-11 h-11 rounded-xl bg-blue-50 text-blue-700 flex items-center justify-center">
+            <Briefcase className="w-5 h-5" />
+          </div>
+        </div>
+
+        {/* Assigned Tasks */}
+        <div className="bg-white rounded-2xl p-5 border border-[#E5E2DC] shadow-xs flex items-center justify-between hover:shadow-md transition">
+          <div>
+            <p className="text-[11px] font-bold text-[#706F6C] uppercase tracking-wider">
+              Assigned Tasks
+            </p>
+            <h3 className="text-2xl font-bold text-[#1A1A1A] mt-1">{totalAssignedTasks}</h3>
+            <p className="text-[11px] text-[#706F6C] mt-0.5">Workload items</p>
+          </div>
+          <div className="w-11 h-11 rounded-xl bg-emerald-50 text-emerald-700 flex items-center justify-center">
+            <CheckSquare className="w-5 h-5" />
+          </div>
+        </div>
+
+        {/* Workload Balance */}
+        <div className="bg-white rounded-2xl p-5 border border-[#E5E2DC] shadow-xs flex items-center justify-between hover:shadow-md transition">
+          <div>
+            <p className="text-[11px] font-bold text-[#706F6C] uppercase tracking-wider">
+              Workload Ratio
+            </p>
+            <h3 className="text-2xl font-bold text-[#1A1A1A] mt-1">{avgTasksPerStaff}</h3>
+            <p className="text-[11px] text-[#706F6C] mt-0.5">Tasks / staff member</p>
+          </div>
+          <div className="w-11 h-11 rounded-xl bg-amber-50 text-amber-700 flex items-center justify-center">
+            <TrendingUp className="w-5 h-5" />
+          </div>
         </div>
       </div>
 
+      {/* Filter Tabs & Search Bar */}
+      <div className="flex flex-col sm:flex-row justify-between items-stretch sm:items-center gap-3">
+        {/* Quick Filter Tabs */}
+        <div className="flex items-center gap-1.5 bg-[#F5F3EF] p-1 rounded-2xl border border-[#E5E2DC] self-start">
+          <button
+            type="button"
+            onClick={() => setFilter('all')}
+            className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition ${
+              filter === 'all'
+                ? 'bg-white text-[#2D3A2D] shadow-xs'
+                : 'text-[#706F6C] hover:text-[#1A1A1A]'
+            }`}
+          >
+            All Members ({staffList.length})
+          </button>
+          <button
+            type="button"
+            onClick={() => setFilter('with_customers')}
+            className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition ${
+              filter === 'with_customers'
+                ? 'bg-white text-[#2D3A2D] shadow-xs'
+                : 'text-[#706F6C] hover:text-[#1A1A1A]'
+            }`}
+          >
+            With Customers ({staffList.filter((s) => (s.customers_count || 0) > 0).length})
+          </button>
+          <button
+            type="button"
+            onClick={() => setFilter('with_tasks')}
+            className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition ${
+              filter === 'with_tasks'
+                ? 'bg-white text-[#2D3A2D] shadow-xs'
+                : 'text-[#706F6C] hover:text-[#1A1A1A]'
+            }`}
+          >
+            With Tasks ({staffList.filter((s) => (s.tasks_count || 0) > 0).length})
+          </button>
+        </div>
+
+        {/* Search Input */}
+        <form onSubmit={handleSearchSubmit} className="relative sm:w-72">
+          <input
+            type="text"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Search by name or email..."
+            className="w-full bg-white border border-[#E5E2DC] rounded-xl pl-4 pr-10 py-2 text-xs font-medium text-[#1A1A1A] placeholder-[#706F6C] focus:border-[#2D3A2D] outline-none shadow-xs"
+          />
+          {search ? (
+            <button
+              type="button"
+              onClick={handleClearSearch}
+              className="absolute right-3 top-2.5 text-[#706F6C] hover:text-[#1A1A1A]"
+              title="Clear Search"
+            >
+              <X className="w-3.5 h-3.5" />
+            </button>
+          ) : (
+            <button
+              type="submit"
+              className="absolute right-3 top-2.5 text-[#706F6C] hover:text-[#2D3A2D]"
+            >
+              <Search className="w-3.5 h-3.5" />
+            </button>
+          )}
+        </form>
+      </div>
+
       {/* Staff Directory Table */}
-      <div className="card-veltrix bg-white !p-0 overflow-hidden">
+      <div className="bg-white rounded-[24px] border border-[#E5E2DC] shadow-xs overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full text-left border-collapse">
             <thead>
-              <tr className="bg-[#F5F3EF]/60 border-b border-[#E5E2DC] text-[10px] font-bold text-[#706F6C] uppercase tracking-wider">
-                <th className="px-8 py-5">{t('name')}</th>
-                <th className="px-8 py-5">{t('email')}</th>
-                <th className="px-8 py-5">{t('role')}</th>
-                <th className="px-8 py-5">Customers</th>
-                <th className="px-8 py-5">Tasks</th>
-                <th className="px-8 py-5 text-center">{t('actions')}</th>
+              <tr className="bg-[#FAF9F5] border-b border-[#E5E2DC] text-[10px] font-bold text-[#706F6C] uppercase tracking-wider">
+                <th className="px-6 py-4">Staff Member</th>
+                <th className="px-6 py-4">Contact (Email)</th>
+                <th className="px-6 py-4">Role</th>
+                <th className="px-6 py-4">Assigned Customers</th>
+                <th className="px-6 py-4">Active Tasks</th>
+                <th className="px-6 py-4 text-center">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-[#E5E2DC]/60 text-xs">
@@ -137,53 +271,105 @@ const StaffPage = () => {
                 <tr>
                   <td colSpan={6} className="p-12 text-center text-[#706F6C]">
                     <div className="w-8 h-8 border-3 border-[#2D3A2D] border-t-transparent rounded-full animate-spin mx-auto mb-2"></div>
-                    Loading personnel...
+                    Loading staff records...
                   </td>
                 </tr>
-              ) : staffList.length > 0 ? (
-                staffList.map((member) => (
+              ) : filteredStaff.length > 0 ? (
+                filteredStaff.map((member) => (
                   <tr key={member._id} className="hover:bg-[#FBFBF9] transition-colors">
-                    <td className="px-8 py-5">
+                    {/* Member Name & Dept */}
+                    <td className="px-6 py-4">
                       <div className="flex items-center gap-3">
                         <div className="relative">
                           <div className="w-9 h-9 rounded-xl bg-[#2D3A2D] text-white flex items-center justify-center font-bold text-xs shadow-sm">
                             {member.name.charAt(0).toUpperCase()}
                           </div>
                           {member.is_online ? (
-                            <span className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 bg-emerald-500 border-2 border-white rounded-full animate-pulse" title="Online now" />
+                            <span
+                              className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 bg-emerald-500 border-2 border-white rounded-full"
+                              title="Active"
+                            />
                           ) : (
-                            <span className="absolute -bottom-0.5 -right-0.5 w-2 h-2 bg-stone-300 border-2 border-white rounded-full" title="Offline" />
+                            <span
+                              className="absolute -bottom-0.5 -right-0.5 w-2 h-2 bg-stone-300 border-2 border-white rounded-full"
+                              title="Offline"
+                            />
                           )}
                         </div>
-                        <span className="font-bold text-[#1A1A1A]">{member.name}</span>
+                        <div>
+                          <p className="font-bold text-[#1A1A1A]">{member.name}</p>
+                          <span className="text-[10px] text-[#706F6C]">
+                            {member.business_type || 'Operations'}
+                          </span>
+                        </div>
                       </div>
                     </td>
-                    <td className="px-8 py-5 text-[#706F6C]">
+
+                    {/* Highlighted Gmail / Contact Pill */}
+                    <td className="px-6 py-4">
                       <a
                         href={`mailto:${member.email}`}
-                        className="hover:text-[#2D3A2D] flex items-center gap-1.5"
+                        className="inline-flex items-center gap-2 px-3 py-1.5 rounded-xl bg-red-50/80 hover:bg-red-100/90 border border-red-200 text-red-950 font-semibold text-xs transition shadow-2xs group"
+                        title={`Click to send email to ${member.email}`}
                       >
-                        <Mail className="w-3.5 h-3.5" />
-                        <span>{member.email}</span>
+                        <div className="w-4 h-4 rounded-full bg-red-600 text-white flex items-center justify-center text-[9px] font-black shadow-2xs">
+                          M
+                        </div>
+                        <span className="group-hover:underline underline-offset-2">{member.email}</span>
                       </a>
                     </td>
-                    <td className="px-8 py-5">
-                      <span className="px-3 py-1 rounded-full text-[9px] font-bold uppercase tracking-wider bg-[#2D3A2D]/10 text-[#2D3A2D]">
+
+                    {/* Role */}
+                    <td className="px-6 py-4">
+                      <span className="px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider bg-[#2D3A2D]/10 text-[#2D3A2D]">
                         {member.role}
                       </span>
                     </td>
-                    <td className="px-8 py-5 font-semibold text-[#1A1A1A]">
-                      {member.customers_count || 0}
+
+                    {/* Customers Count (CLICKABLE BUTTON) */}
+                    <td className="px-6 py-4">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setModalTab('customers');
+                          setInspectStaff(member);
+                        }}
+                        className="inline-flex items-center gap-2 px-3 py-1.5 rounded-xl bg-blue-50 hover:bg-blue-100 text-blue-900 border border-blue-200/90 font-bold text-xs transition shadow-2xs hover:shadow-xs cursor-pointer group"
+                        title="Click to view assigned customer accounts"
+                      >
+                        <Briefcase className="w-3.5 h-3.5 text-blue-700 group-hover:scale-110 transition" />
+                        <span>{member.customers_count || 0} Accounts</span>
+                        <ChevronRight className="w-3 h-3 text-blue-500 opacity-60 group-hover:opacity-100 group-hover:translate-x-0.5 transition" />
+                      </button>
                     </td>
-                    <td className="px-8 py-5 font-semibold text-[#1A1A1A]">
-                      {member.tasks_count || 0}
+
+                    {/* Tasks Count (CLICKABLE BUTTON) */}
+                    <td className="px-6 py-4">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setModalTab('tasks');
+                          setInspectStaff(member);
+                        }}
+                        className="inline-flex items-center gap-2 px-3 py-1.5 rounded-xl bg-emerald-50 hover:bg-emerald-100 text-emerald-900 border border-emerald-200/90 font-bold text-xs transition shadow-2xs hover:shadow-xs cursor-pointer group"
+                        title="Click to view assigned tasks and deliverables"
+                      >
+                        <CheckSquare className="w-3.5 h-3.5 text-emerald-700 group-hover:scale-110 transition" />
+                        <span>{member.tasks_count || 0} Tasks</span>
+                        <ChevronRight className="w-3 h-3 text-emerald-500 opacity-60 group-hover:opacity-100 group-hover:translate-x-0.5 transition" />
+                      </button>
                     </td>
-                    <td className="px-8 py-5 text-center">
-                      <div className="flex items-center justify-center gap-1.5">
+
+                    {/* Actions */}
+                    <td className="px-6 py-4 text-center">
+                      <div className="flex items-center justify-center gap-1">
                         <button
-                          onClick={() => setInspectStaff(member)}
-                          className="p-2 text-[#706F6C] hover:text-[#2D3A2D] hover:bg-[#F5F3EF] rounded-xl transition"
-                          title={t('inspect')}
+                          onClick={() => {
+                            setModalTab('customers');
+                            setInspectStaff(member);
+                          }}
+                          className="p-1.5 text-[#706F6C] hover:text-[#2D3A2D] hover:bg-[#F5F3EF] rounded-lg transition"
+                          title="View Details"
                         >
                           <Eye className="w-4 h-4" />
                         </button>
@@ -192,15 +378,15 @@ const StaffPage = () => {
                             setFormStaff(member);
                             setIsFormOpen(true);
                           }}
-                          className="p-2 text-[#706F6C] hover:text-[#2D3A2D] hover:bg-[#F5F3EF] rounded-xl transition"
-                          title={t('edit_member')}
+                          className="p-1.5 text-[#706F6C] hover:text-[#2D3A2D] hover:bg-[#F5F3EF] rounded-lg transition"
+                          title="Edit Details"
                         >
                           <Edit2 className="w-4 h-4" />
                         </button>
                         <button
                           onClick={() => setDeleteId(member._id)}
-                          className="p-2 text-[#706F6C] hover:text-[#9B5A46] hover:bg-[#9B5A46]/10 rounded-xl transition"
-                          title="Deauthorize"
+                          className="p-1.5 text-[#706F6C] hover:text-[#9B5A46] hover:bg-[#9B5A46]/10 rounded-lg transition"
+                          title="Remove Member"
                         >
                           <Trash2 className="w-4 h-4" />
                         </button>
@@ -211,7 +397,8 @@ const StaffPage = () => {
               ) : (
                 <tr>
                   <td colSpan={6} className="p-12 text-center text-[#706F6C]">
-                    {t('no_personnel_registered')}
+                    <UserCheck className="w-8 h-8 mx-auto mb-2 text-[#706F6C]/50" />
+                    <p className="font-medium text-xs">No staff members found matching criteria.</p>
                   </td>
                 </tr>
               )}
@@ -223,6 +410,7 @@ const StaffPage = () => {
       {/* Staff Details Modal */}
       <StaffDetailsModal
         staff={inspectStaff}
+        initialTab={modalTab}
         onClose={() => setInspectStaff(null)}
       />
 
@@ -234,14 +422,14 @@ const StaffPage = () => {
         onSaved={fetchStaff}
       />
 
-      {/* Deauthorize Confirmation Modal */}
+      {/* Remove Confirmation Modal */}
       <ConfirmModal
         isOpen={!!deleteId}
         onClose={() => setDeleteId(null)}
         onConfirm={handleDelete}
-        title="Deauthorize Member?"
-        message="Are you sure you want to permanently deauthorize this member? Their operational deliverables and accounts will be unassigned."
-        confirmText="Deauthorize Member"
+        title="Remove Staff Member?"
+        message="Are you sure you want to remove this staff member? Their assigned customers and tasks will be unassigned."
+        confirmText="Remove Member"
       />
     </div>
   );
