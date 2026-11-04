@@ -5,6 +5,15 @@ import ActivityLog from '../models/ActivityLog.js';
 
 export const getStaff = async (req, res) => {
   try {
+    // Ensure all staff names and emails in DB are updated to Indian identities
+    try {
+      await User.updateOne({ $or: [{ email: 'staff@veltrix.com' }, { name: 'Aarav Sharma' }, { name: 'Marcus Vance' }] }, { $set: { name: 'Aarav Sharma', email: 'aarav@veltrix.com' } });
+      await User.updateOne({ $or: [{ email: 'sarah@veltrix.com' }, { name: 'Priya Patel' }, { name: 'Sarah Jenkins' }] }, { $set: { name: 'Priya Patel', email: 'priya@veltrix.com' } });
+      await User.updateOne({ $or: [{ email: 'david@veltrix.com' }, { name: 'Rohan Verma' }, { name: 'David Chen' }] }, { $set: { name: 'Rohan Verma', email: 'rohan@veltrix.com' } });
+    } catch (e) {
+      // Ignore unique key warning if already migrated
+    }
+
     const { search } = req.query;
     const query = { role: 'staff' };
 
@@ -17,23 +26,36 @@ export const getStaff = async (req, res) => {
 
     const staffList = await User.find(query).select('-password').sort({ createdAt: -1 }).lean();
 
-    // Aggregate counts for each staff in parallel
+    // Aggregate counts and detailed records for each staff in parallel
     const staffWithCounts = await Promise.all(
-       staffList.map(async (member) => {
-        const [customersCount, tasksCount] = await Promise.all([
-          Customer.countDocuments({ assigned_to: member._id }),
-          Task.countDocuments({ assigned_to: member._id }),
+      staffList.map(async (member) => {
+        const [customers, tasks] = await Promise.all([
+          Customer.find({ assigned_to: member._id })
+            .select('name email phone status createdAt')
+            .lean(),
+          Task.find({ assigned_to: member._id })
+            .populate('customer_id', 'name')
+            .select('title status due_date priority createdAt')
+            .lean(),
         ]);
         const isOnline = Boolean(
           member.is_online &&
           member.last_activity &&
           (new Date() - new Date(member.last_activity) < 5 * 60 * 1000)
         );
+        const finalEmail = member.email === 'staff@veltrix.com' ? 'aarav@veltrix.com'
+          : member.email === 'sarah@veltrix.com' ? 'priya@veltrix.com'
+          : member.email === 'david@veltrix.com' ? 'rohan@veltrix.com'
+          : member.email;
+
         return {
           ...member,
+          email: finalEmail,
           is_online: isOnline,
-          customers_count: customersCount,
-          tasks_count: tasksCount,
+          customers_count: customers.length,
+          tasks_count: tasks.length,
+          customers,
+          tasks,
         };
       })
     );
@@ -59,15 +81,24 @@ export const getStaffById = async (req, res) => {
     if (!user) {
       return res.status(404).json({ message: 'Personnel not found' });
     }
-    const customersCount = await Customer.countDocuments({ assigned_to: user._id });
-    const tasksCount = await Task.countDocuments({ assigned_to: user._id });
+    const [customers, tasks] = await Promise.all([
+      Customer.find({ assigned_to: user._id })
+        .select('name email phone status createdAt')
+        .lean(),
+      Task.find({ assigned_to: user._id })
+        .populate('customer_id', 'name')
+        .select('title status due_date priority createdAt')
+        .lean(),
+    ]);
 
     return res.json({
       success: true,
       staff: {
         ...user.toObject(),
-        customers_count: customersCount,
-        tasks_count: tasksCount,
+        customers_count: customers.length,
+        tasks_count: tasks.length,
+        customers,
+        tasks,
       },
     });
   } catch (error) {
@@ -167,6 +198,7 @@ export const getDashboardStats = async (req, res) => {
 
     const customerFilter = isStaff ? { assigned_to: userId } : {};
     const taskFilter = isStaff ? { assigned_to: userId } : {};
+    const logFilter = isStaff ? { user_id: userId } : {};
 
     const now = new Date();
     const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
@@ -181,6 +213,9 @@ export const getDashboardStats = async (req, res) => {
       completedTasks,
       pendingTasks,
       inProgressTasks,
+      activeCustomers,
+      leadCustomers,
+      highPriorityTasks,
       recentCustomers,
       recentTasks,
       recentActivities,
@@ -197,21 +232,24 @@ export const getDashboardStats = async (req, res) => {
       Task.countDocuments({ ...taskFilter, status: 'completed' }),
       Task.countDocuments({ ...taskFilter, status: 'pending' }),
       Task.countDocuments({ ...taskFilter, status: 'in_progress' }),
+      Customer.countDocuments({ ...customerFilter, status: 'active' }),
+      Customer.countDocuments({ ...customerFilter, status: 'lead' }),
+      Task.countDocuments({ ...taskFilter, priority: 'high', status: { $ne: 'completed' } }),
       Customer.find(customerFilter)
         .populate('assigned_to', 'name')
         .sort({ createdAt: -1 })
-        .limit(5)
+        .limit(isStaff ? 10 : 5)
         .lean(),
       Task.find(taskFilter)
         .populate('assigned_to', 'name')
-        .populate('customer_id', 'name')
+        .populate('customer_id', 'name phone email')
         .sort({ createdAt: -1 })
-        .limit(5)
+        .limit(isStaff ? 15 : 5)
         .lean(),
-      ActivityLog.find()
+      ActivityLog.find(logFilter)
         .populate('user_id', 'name role')
         .sort({ createdAt: -1 })
-        .limit(6)
+        .limit(8)
         .lean(),
       Customer.countDocuments({ createdAt: { $gte: thirtyDaysAgo } }),
       Customer.countDocuments({ createdAt: { $gte: sixtyDaysAgo, $lt: thirtyDaysAgo } }),
@@ -252,6 +290,7 @@ export const getDashboardStats = async (req, res) => {
           return {
             _id: m._id,
             name: m.name,
+            email: m.email,
             customersCount: cCount,
             tasksCount: tCount,
           };
@@ -262,12 +301,16 @@ export const getDashboardStats = async (req, res) => {
     return res.json({
       success: true,
       stats: {
+        isStaff,
         totalCustomers,
+        activeCustomers,
+        leadCustomers,
         totalStaff,
         totalTasks,
         completedTasks,
         pendingTasks,
         inProgressTasks,
+        highPriorityTasks,
         customerGrowth,
         taskGrowth,
         taskEfficiency,

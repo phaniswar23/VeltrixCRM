@@ -5,6 +5,15 @@ import ActivityLog from '../models/ActivityLog.js';
 
 export const getStaff = async (req, res) => {
   try {
+    // Ensure all staff names and emails in DB are updated to Indian identities
+    try {
+      await User.updateOne({ $or: [{ email: 'staff@veltrix.com' }, { name: 'Aarav Sharma' }, { name: 'Marcus Vance' }] }, { $set: { name: 'Aarav Sharma', email: 'aarav@veltrix.com' } });
+      await User.updateOne({ $or: [{ email: 'sarah@veltrix.com' }, { name: 'Priya Patel' }, { name: 'Sarah Jenkins' }] }, { $set: { name: 'Priya Patel', email: 'priya@veltrix.com' } });
+      await User.updateOne({ $or: [{ email: 'david@veltrix.com' }, { name: 'Rohan Verma' }, { name: 'David Chen' }] }, { $set: { name: 'Rohan Verma', email: 'rohan@veltrix.com' } });
+    } catch (e) {
+      // Ignore unique key warning if already migrated
+    }
+
     const { search } = req.query;
     const query = { role: 'staff' };
 
@@ -34,8 +43,14 @@ export const getStaff = async (req, res) => {
           member.last_activity &&
           (new Date() - new Date(member.last_activity) < 5 * 60 * 1000)
         );
+        const finalEmail = member.email === 'staff@veltrix.com' ? 'aarav@veltrix.com'
+          : member.email === 'sarah@veltrix.com' ? 'priya@veltrix.com'
+          : member.email === 'david@veltrix.com' ? 'rohan@veltrix.com'
+          : member.email;
+
         return {
           ...member,
+          email: finalEmail,
           is_online: isOnline,
           customers_count: customers.length,
           tasks_count: tasks.length,

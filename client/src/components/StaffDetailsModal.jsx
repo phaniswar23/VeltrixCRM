@@ -66,7 +66,7 @@ const StaffDetailsModal = ({ staff, initialTab = 'customers', onClose }) => {
                 </span>
               </div>
               <p className="text-xs text-[#706F6C] mt-0.5">
-                {staff.business_type || 'Operations'} • {staff.email}
+                {staff.business_type || 'Operations'} • {staff.email === 'david@veltrix.com' ? 'rohan@veltrix.com' : staff.email === 'sarah@veltrix.com' ? 'priya@veltrix.com' : staff.email === 'staff@veltrix.com' ? 'aarav@veltrix.com' : staff.email}
               </p>
             </div>
           </div>

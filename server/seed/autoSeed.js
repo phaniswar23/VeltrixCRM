@@ -6,10 +6,24 @@ import Notification from '../models/Notification.js';
 
 export const autoSeedIfEmpty = async () => {
   try {
+    // Ensure all existing staff accounts are updated to Indian identities and emails in DB
+    await User.updateMany(
+      { $or: [{ email: 'staff@veltrix.com' }, { name: 'Aarav Sharma' }, { name: 'Marcus Vance' }] },
+      { name: 'Aarav Sharma', email: 'aarav@veltrix.com' }
+    );
+    await User.updateMany(
+      { $or: [{ email: 'sarah@veltrix.com' }, { name: 'Priya Patel' }, { name: 'Sarah Jenkins' }] },
+      { name: 'Priya Patel', email: 'priya@veltrix.com' }
+    );
+    await User.updateMany(
+      { $or: [{ email: 'david@veltrix.com' }, { name: 'Rohan Verma' }, { name: 'David Chen' }] },
+      { name: 'Rohan Verma', email: 'rohan@veltrix.com' }
+    );
+
     let admin = await User.findOne({ email: 'admin@veltrix.com' });
-    let staff1 = await User.findOne({ email: 'staff@veltrix.com' });
-    let staff2 = await User.findOne({ email: 'sarah@veltrix.com' });
-    let staff3 = await User.findOne({ email: 'david@veltrix.com' });
+    let staff1 = await User.findOne({ email: 'aarav@veltrix.com' });
+    let staff2 = await User.findOne({ email: 'priya@veltrix.com' });
+    let staff3 = await User.findOne({ email: 'rohan@veltrix.com' });
 
     if (!admin) {
       console.log('[Seed] Auto-creating demo admin (admin@veltrix.com)...');
@@ -23,21 +37,21 @@ export const autoSeedIfEmpty = async () => {
     }
 
     if (!staff1) {
-      console.log('[Seed] Auto-creating demo staff 1: Marcus Vance (staff@veltrix.com)...');
+      console.log('[Seed] Auto-creating demo staff 1: Aarav Sharma (aarav@veltrix.com)...');
       staff1 = await User.create({
-        name: 'Marcus Vance',
-        email: 'staff@veltrix.com',
+        name: 'Aarav Sharma',
+        email: 'aarav@veltrix.com',
         password: 'password123',
         role: 'staff',
-        business_type: 'Operational Pipeline',
+        business_type: 'Operations',
       });
     }
 
     if (!staff2) {
-      console.log('[Seed] Auto-creating demo staff 2: Sarah Jenkins (sarah@veltrix.com)...');
+      console.log('[Seed] Auto-creating demo staff 2: Priya Patel (priya@veltrix.com)...');
       staff2 = await User.create({
-        name: 'Sarah Jenkins',
-        email: 'sarah@veltrix.com',
+        name: 'Priya Patel',
+        email: 'priya@veltrix.com',
         password: 'password123',
         role: 'staff',
         business_type: 'Client Success',
@@ -45,10 +59,10 @@ export const autoSeedIfEmpty = async () => {
     }
 
     if (!staff3) {
-      console.log('[Seed] Auto-creating demo staff 3: David Chen (david@veltrix.com)...');
+      console.log('[Seed] Auto-creating demo staff 3: Rohan Verma (rohan@veltrix.com)...');
       staff3 = await User.create({
-        name: 'David Chen',
-        email: 'david@veltrix.com',
+        name: 'Rohan Verma',
+        email: 'rohan@veltrix.com',
         password: 'password123',
         role: 'staff',
         business_type: 'Enterprise Solutions',

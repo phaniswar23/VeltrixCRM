@@ -5,6 +5,7 @@ import {
   createCustomer,
   updateCustomer,
   deleteCustomer,
+  importCustomersBatch,
 } from '../controllers/customerController.js';
 import { protect } from '../middleware/auth.js';
 
@@ -12,6 +13,7 @@ const router = express.Router();
 
 router.use(protect);
 
+router.post('/import', importCustomersBatch);
 router.route('/').get(getCustomers).post(createCustomer);
 router.route('/:id').get(getCustomerById).put(updateCustomer).delete(deleteCustomer);
 

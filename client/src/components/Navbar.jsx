@@ -38,7 +38,7 @@ const Navbar = () => {
     <nav className="w-full py-5 sticky top-0 z-50 bg-[#FBFBF9]/85 backdrop-blur-md border-b border-[#E5E2DC]">
       <div className="container-boxed flex items-center justify-between">
         {/* Brand Logo */}
-        <Link to="/" className="flex items-center gap-2.5 group">
+        <Link to={isAuthenticated ? dashboardRoute : '/'} className="flex items-center gap-2.5 group">
           <div className="w-9 h-9 bg-[#2D3A2D] rounded-xl flex items-center justify-center text-white font-bold text-lg group-hover:scale-105 group-hover:rotate-3 transition-all duration-300 shadow-md shadow-[#2D3A2D]/15">
             V
           </div>

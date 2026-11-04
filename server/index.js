@@ -13,6 +13,11 @@ import analyticsRoutes from './routes/analyticsRoutes.js';
 import notificationRoutes from './routes/notificationRoutes.js';
 import aiRoutes from './routes/aiRoutes.js';
 import contactRoutes from './routes/contactRoutes.js';
+import dealRoutes from './routes/dealRoutes.js';
+import timelineRoutes from './routes/timelineRoutes.js';
+import automationRoutes from './routes/automationRoutes.js';
+import invoiceRoutes from './routes/invoiceRoutes.js';
+import realtimeRoutes from './routes/realtimeRoutes.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -73,6 +78,21 @@ app.use('/ai', aiRoutes);
 
 app.use('/api/contact', contactRoutes);
 app.use('/contact', contactRoutes);
+
+app.use('/api/deals', dealRoutes);
+app.use('/deals', dealRoutes);
+
+app.use('/api/timeline', timelineRoutes);
+app.use('/timeline', timelineRoutes);
+
+app.use('/api/automations', automationRoutes);
+app.use('/automations', automationRoutes);
+
+app.use('/api/invoices', invoiceRoutes);
+app.use('/invoices', invoiceRoutes);
+
+app.use('/api/realtime', realtimeRoutes);
+app.use('/realtime', realtimeRoutes);
 
 // Serve static assets in production if client build exists
 const clientDist = path.join(__dirname, '../dist');

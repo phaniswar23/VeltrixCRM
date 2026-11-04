@@ -429,3 +429,28 @@ html.lenis, html.lenis body {
   box-shadow: 0 20px 35px -10px rgba(45, 58, 45, 0.12);
   border-color: rgba(45, 58, 45, 0.3);
 }
+
+/* Pristine Single-Page Invoice Print Styles */
+@media print {
+  @page {
+    size: A4 portrait;
+    margin: 6mm 8mm;
+  }
+
+  html, body {
+    margin: 0 !important;
+    padding: 0 !important;
+    background: #ffffff !important;
+    height: auto !important;
+    overflow: visible !important;
+  }
+
+  #printable-invoice-receipt {
+    max-height: 275mm !important;
+    box-sizing: border-box !important;
+    page-break-after: avoid !important;
+    page-break-inside: avoid !important;
+    break-after: avoid !important;
+    break-inside: avoid !important;
+  }
+}

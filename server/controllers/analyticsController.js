@@ -9,6 +9,22 @@ export const getAnalyticsData = async (req, res) => {
     const isStaff = req.user.role === 'staff';
     const userId = req.user._id;
 
+    // Calculate time range boundary
+    const now = new Date();
+    let rangeStartDate = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+    let rangeLabel = 'Last 30 Days';
+
+    if (range === '7d') {
+      rangeStartDate = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+      rangeLabel = 'Last 7 Days';
+    } else if (range === 'quarter') {
+      rangeStartDate = new Date(now.getTime() - 90 * 24 * 60 * 60 * 1000);
+      rangeLabel = 'Last Quarter';
+    } else if (range === 'year') {
+      rangeStartDate = new Date(now.getFullYear(), 0, 1);
+      rangeLabel = 'Year to Date';
+    }
+
     // Filters for role segregation: Staff only view their assigned metrics
     const custBaseFilter = isStaff ? { assigned_to: userId } : {};
     const taskBaseFilter = isStaff ? { assigned_to: userId } : {};
@@ -34,7 +50,7 @@ export const getAnalyticsData = async (req, res) => {
     const logs = await ActivityLog.find(logFilter)
       .populate('user_id', 'name role email')
       .sort({ createdAt: -1 })
-      .limit(50);
+      .limit(100);
 
     // 4. Staff Performance & Workload Breakdown
     let staffMembers = [];
@@ -66,7 +82,6 @@ export const getAnalyticsData = async (req, res) => {
     );
 
     // 5. 6-Month Trajectory
-    const now = new Date();
     const monthLabels = [];
     const monthlyCustomers = [];
     const monthlyTasks = [];
@@ -150,6 +165,9 @@ export const getAnalyticsData = async (req, res) => {
           mediumPriorityTasks,
           lowPriorityTasks,
           healthScore: 99.8,
+          range,
+          rangeLabel,
+          tasksInProgress: inProgressTasks,
         },
         entityDistribution: {
           lead: leadsCount,

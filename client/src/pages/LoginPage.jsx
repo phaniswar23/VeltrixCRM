@@ -6,29 +6,29 @@ import { ArrowRight, Sparkles, TrendingUp, Users, ChevronDown } from 'lucide-rea
 
 const DEMO_STAFF_PROFILES = [
   {
-    name: 'Marcus Vance',
-    email: 'staff@veltrix.com',
+    name: 'Aarav Sharma',
+    email: 'aarav@veltrix.com',
     role: 'Operations Lead',
-    badge: 'Operational Pipeline',
-    initials: 'MV',
+    badge: 'Operations',
+    initials: 'AS',
     color: 'bg-emerald-100 text-emerald-800 border-emerald-200',
     stats: '2 Customers • 2 Tasks',
   },
   {
-    name: 'Sarah Jenkins',
-    email: 'sarah@veltrix.com',
+    name: 'Priya Patel',
+    email: 'priya@veltrix.com',
     role: 'Client Success Manager',
     badge: 'Client Success',
-    initials: 'SJ',
+    initials: 'PP',
     color: 'bg-blue-100 text-blue-800 border-blue-200',
     stats: '2 Customers • 1 Task',
   },
   {
-    name: 'David Chen',
-    email: 'david@veltrix.com',
+    name: 'Rohan Verma',
+    email: 'rohan@veltrix.com',
     role: 'Enterprise Solutions',
     badge: 'Enterprise Solutions',
-    initials: 'DC',
+    initials: 'RV',
     color: 'bg-purple-100 text-purple-800 border-purple-200',
     stats: '1 Customer • 1 Task',
   },
@@ -92,9 +92,9 @@ const LoginPage = () => {
   };
 
   const handleQuickDemoLogin = async (target) => {
-    let demoEmail = 'staff@veltrix.com';
+    let demoEmail = 'aarav@veltrix.com';
     if (typeof target === 'string') {
-      demoEmail = target === 'admin' ? 'admin@veltrix.com' : 'staff@veltrix.com';
+      demoEmail = target === 'admin' ? 'admin@veltrix.com' : 'aarav@veltrix.com';
     } else if (target && target.email) {
       demoEmail = target.email;
     }

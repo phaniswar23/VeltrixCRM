@@ -22,6 +22,8 @@ import {
   ArrowRight,
   TrendingUp,
   AlertCircle,
+  AlertTriangle,
+  MoreHorizontal,
 } from 'lucide-react';
 
 const TasksPage = () => {
@@ -40,6 +42,9 @@ const TasksPage = () => {
   const [statusFilter, setStatusFilter] = useState('all'); // 'all' | 'pending' | 'in_progress' | 'completed'
   const [search, setSearch] = useState(urlSearch);
   const [selectedStaff, setSelectedStaff] = useState('');
+
+  // Floating Action Menu state
+  const [activeActionMenuId, setActiveActionMenuId] = useState(null);
 
   // Modals
   const [formTask, setFormTask] = useState(null);
@@ -86,6 +91,20 @@ const TasksPage = () => {
   useEffect(() => {
     fetchTasks();
   }, [selectedStaff]);
+
+  // Click outside to close floating action menus
+  useEffect(() => {
+    const handleOutsideClick = (e) => {
+      if (
+        !e.target.closest('.task-action-trigger') &&
+        !e.target.closest('.task-action-dropdown')
+      ) {
+        setActiveActionMenuId(null);
+      }
+    };
+    document.addEventListener('click', handleOutsideClick);
+    return () => document.removeEventListener('click', handleOutsideClick);
+  }, []);
 
   const handleSearchSubmit = (e) => {
     e.preventDefault();
@@ -292,64 +311,107 @@ const TasksPage = () => {
         </div>
       </div>
 
-      {/* Filters Bar */}
-      <div className="flex flex-col lg:flex-row justify-between items-stretch lg:items-center gap-3">
-        {/* Quick Status Filter Tabs */}
-        <div className="flex items-center gap-1.5 bg-[#F5F3EF] p-1 rounded-2xl border border-[#E5E2DC] overflow-x-auto self-start">
+      {/* Tip 3: Unified Cohesive Control Toolbar (Filter Pills + Staff Dropdown + Search) */}
+      <div className="bg-white rounded-[24px] border border-[#E5E2DC] p-3 shadow-xs flex flex-col xl:flex-row items-stretch xl:items-center justify-between gap-3">
+        {/* Quick Status Filter Tabs with Solid High-Contrast Background Fill */}
+        <div className="flex items-center gap-1.5 bg-[#FAF9F5] p-1 rounded-2xl border border-[#E5E2DC]/80 overflow-x-auto">
+          {/* All */}
           <button
             type="button"
             onClick={() => setStatusFilter('all')}
-            className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition whitespace-nowrap ${
+            className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition whitespace-nowrap flex items-center gap-1.5 ${
               statusFilter === 'all'
-                ? 'bg-white text-[#2D3A2D] shadow-xs'
-                : 'text-[#706F6C] hover:text-[#1A1A1A]'
+                ? 'bg-[#2D3A2D] text-white shadow-xs'
+                : 'text-[#706F6C] hover:text-[#1A1A1A] hover:bg-white/80'
             }`}
           >
-            All ({totalTasks})
+            <span>All</span>
+            <span
+              className={`text-[10px] px-1.5 py-0.2 rounded-md font-extrabold ${
+                statusFilter === 'all'
+                  ? 'bg-white/20 text-white'
+                  : 'bg-[#E5E2DC]/60 text-[#706F6C]'
+              }`}
+            >
+              {totalTasks}
+            </span>
           </button>
+
+          {/* Pending */}
           <button
             type="button"
             onClick={() => setStatusFilter('pending')}
-            className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition whitespace-nowrap ${
+            className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition whitespace-nowrap flex items-center gap-1.5 ${
               statusFilter === 'pending'
-                ? 'bg-white text-amber-800 shadow-xs'
-                : 'text-[#706F6C] hover:text-[#1A1A1A]'
+                ? 'bg-[#2D3A2D] text-white shadow-xs'
+                : 'text-[#706F6C] hover:text-[#1A1A1A] hover:bg-white/80'
             }`}
           >
-            Pending ({pendingCount})
+            <span>Pending</span>
+            <span
+              className={`text-[10px] px-1.5 py-0.2 rounded-md font-extrabold ${
+                statusFilter === 'pending'
+                  ? 'bg-white/20 text-white'
+                  : 'bg-amber-100 text-amber-900'
+              }`}
+            >
+              {pendingCount}
+            </span>
           </button>
+
+          {/* In Progress */}
           <button
             type="button"
             onClick={() => setStatusFilter('in_progress')}
-            className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition whitespace-nowrap ${
+            className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition whitespace-nowrap flex items-center gap-1.5 ${
               statusFilter === 'in_progress'
-                ? 'bg-white text-blue-800 shadow-xs'
-                : 'text-[#706F6C] hover:text-[#1A1A1A]'
+                ? 'bg-[#2D3A2D] text-white shadow-xs'
+                : 'text-[#706F6C] hover:text-[#1A1A1A] hover:bg-white/80'
             }`}
           >
-            In Progress ({inProgressCount})
+            <span>In Progress</span>
+            <span
+              className={`text-[10px] px-1.5 py-0.2 rounded-md font-extrabold ${
+                statusFilter === 'in_progress'
+                  ? 'bg-white/20 text-white'
+                  : 'bg-blue-100 text-blue-900'
+              }`}
+            >
+              {inProgressCount}
+            </span>
           </button>
+
+          {/* Completed */}
           <button
             type="button"
             onClick={() => setStatusFilter('completed')}
-            className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition whitespace-nowrap ${
+            className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition whitespace-nowrap flex items-center gap-1.5 ${
               statusFilter === 'completed'
-                ? 'bg-white text-emerald-800 shadow-xs'
-                : 'text-[#706F6C] hover:text-[#1A1A1A]'
+                ? 'bg-[#2D3A2D] text-white shadow-xs'
+                : 'text-[#706F6C] hover:text-[#1A1A1A] hover:bg-white/80'
             }`}
           >
-            Completed ({completedCount})
+            <span>Completed</span>
+            <span
+              className={`text-[10px] px-1.5 py-0.2 rounded-md font-extrabold ${
+                statusFilter === 'completed'
+                  ? 'bg-white/20 text-white'
+                  : 'bg-emerald-100 text-emerald-900'
+              }`}
+            >
+              {completedCount}
+            </span>
           </button>
         </div>
 
-        {/* Search & Staff Filter */}
-        <div className="flex flex-wrap items-center gap-2.5 w-full lg:w-auto">
+        {/* Staff Filter Dropdown & Search Input seamlessly combined on the right */}
+        <div className="flex flex-wrap items-center gap-2.5 w-full xl:w-auto">
           {/* Staff Filter Dropdown (Admin) */}
           {isAdmin && (
             <select
               value={selectedStaff}
               onChange={(e) => setSelectedStaff(e.target.value)}
-              className="bg-white border border-[#E5E2DC] rounded-xl px-3 py-2 text-xs font-medium text-[#1A1A1A] outline-none shadow-xs cursor-pointer hover:border-[#2D3A2D] transition"
+              className="bg-[#FAF9F5] border border-[#E5E2DC] rounded-xl px-3 py-2 text-xs font-semibold text-[#1A1A1A] outline-none shadow-2xs cursor-pointer hover:bg-white hover:border-[#2D3A2D] transition"
             >
               <option value="">All Team Members</option>
               {staffList.map((s) => (
@@ -367,8 +429,9 @@ const TasksPage = () => {
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               placeholder="Search by title or account..."
-              className="w-full bg-white border border-[#E5E2DC] rounded-xl pl-3.5 pr-9 py-2 text-xs font-medium text-[#1A1A1A] placeholder-[#706F6C] focus:border-[#2D3A2D] outline-none shadow-xs"
+              className="w-full bg-[#FAF9F5] border border-[#E5E2DC] rounded-xl pl-9 pr-9 py-2 text-xs font-medium text-[#1A1A1A] placeholder-[#706F6C] focus:bg-white focus:border-[#2D3A2D] outline-none transition shadow-2xs"
             />
+            <Search className="absolute left-3 top-2.5 w-3.5 h-3.5 text-[#706F6C]" />
             {search ? (
               <button
                 type="button"
@@ -378,14 +441,7 @@ const TasksPage = () => {
               >
                 <X className="w-3.5 h-3.5" />
               </button>
-            ) : (
-              <button
-                type="submit"
-                className="absolute right-3 top-2.5 text-[#706F6C] hover:text-[#2D3A2D]"
-              >
-                <Search className="w-3.5 h-3.5" />
-              </button>
-            )}
+            ) : null}
           </form>
         </div>
       </div>
@@ -419,85 +475,112 @@ const TasksPage = () => {
               {/* Column Cards */}
               <div className="space-y-3 min-h-[160px]">
                 {col.tasks.length > 0 ? (
-                  col.tasks.map((task) => (
-                    <div
-                      key={task._id}
-                      className="bg-white border border-[#E5E2DC] rounded-2xl p-4 shadow-2xs hover:shadow-md hover:border-[#2D3A2D] transition space-y-3"
-                    >
-                      <div className="flex items-start justify-between gap-2">
-                        <h4 className="font-bold text-[#1A1A1A] text-sm leading-snug">
-                          {task.title}
-                        </h4>
-                        <div className="flex items-center gap-1">
-                          <button
-                            onClick={() => {
-                              setFormTask(task);
-                              setIsFormOpen(true);
-                            }}
-                            className="p-1 text-[#706F6C] hover:text-[#2D3A2D] hover:bg-[#F5F3EF] rounded-md transition"
-                            title="Edit"
-                          >
-                            <Edit2 className="w-3.5 h-3.5" />
-                          </button>
-                          <button
-                            onClick={() => setDeleteId(task._id)}
-                            className="p-1 text-[#706F6C] hover:text-[#9B5A46] hover:bg-[#9B5A46]/10 rounded-md transition"
-                            title="Delete"
-                          >
-                            <Trash2 className="w-3.5 h-3.5" />
-                          </button>
-                        </div>
-                      </div>
+                  col.tasks.map((task) => {
+                    const isPastDue =
+                      task.due_date &&
+                      new Date(task.due_date) < new Date() &&
+                      task.status !== 'completed';
 
-                      {task.description && (
-                        <p className="text-xs text-[#706F6C] line-clamp-2 leading-relaxed">
-                          {task.description}
-                        </p>
-                      )}
-
-                      {/* Due date & account */}
-                      <div className="space-y-1.5 pt-2 border-t border-[#E5E2DC]/60 text-[11px] text-[#706F6C]">
-                        {task.customer_id && (
-                          <div className="flex items-center gap-1.5 font-medium text-[#1A1A1A] truncate">
-                            <Briefcase className="w-3 h-3 text-[#706F6C] flex-shrink-0" />
-                            <span className="truncate">{task.customer_id.name}</span>
+                    return (
+                      <div
+                        key={task._id}
+                        className={`rounded-2xl p-4 shadow-2xs hover:shadow-md transition space-y-3 ${
+                          isPastDue
+                            ? 'bg-rose-50/25 border-2 border-rose-300 hover:border-rose-400'
+                            : 'bg-white border border-[#E5E2DC] hover:border-[#2D3A2D]'
+                        }`}
+                      >
+                        <div className="flex items-start justify-between gap-2">
+                          <div className="space-y-1 min-w-0">
+                            {isPastDue && (
+                              <span className="inline-flex items-center gap-1 text-[9px] font-black uppercase text-rose-800 bg-rose-100 px-2 py-0.5 rounded-full border border-rose-300">
+                                <AlertTriangle className="w-2.5 h-2.5 text-rose-600 animate-pulse" />
+                                <span>Overdue</span>
+                              </span>
+                            )}
+                            <h4 className="font-bold text-[#1A1A1A] text-sm leading-snug">
+                              {task.title}
+                            </h4>
                           </div>
+
+                          <div className="flex items-center gap-1 shrink-0">
+                            <button
+                              onClick={() => {
+                                setFormTask(task);
+                                setIsFormOpen(true);
+                              }}
+                              className="p-1 text-[#706F6C] hover:text-[#2D3A2D] hover:bg-[#F5F3EF] rounded-md transition"
+                              title="Edit"
+                            >
+                              <Edit2 className="w-3.5 h-3.5" />
+                            </button>
+                            <button
+                              onClick={() => setDeleteId(task._id)}
+                              className="p-1 text-[#706F6C] hover:text-[#9B5A46] hover:bg-[#9B5A46]/10 rounded-md transition"
+                              title="Delete"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </button>
+                          </div>
+                        </div>
+
+                        {task.description && (
+                          <p className="text-xs text-[#706F6C] line-clamp-2 leading-relaxed">
+                            {task.description}
+                          </p>
                         )}
 
-                        <div className="flex items-center justify-between gap-2 pt-1">
-                          {task.due_date ? (
-                            <div className="flex items-center gap-1 text-[10px] font-semibold text-[#706F6C]">
-                              <Calendar className="w-3 h-3 text-[#706F6C]" />
-                              <span>{new Date(task.due_date).toLocaleDateString()}</span>
+                        {/* Due date & account */}
+                        <div className="space-y-1.5 pt-2 border-t border-[#E5E2DC]/60 text-[11px] text-[#706F6C]">
+                          {task.customer_id && (
+                            <div className="flex items-center gap-1.5 font-medium text-[#1A1A1A] truncate">
+                              <Briefcase className="w-3 h-3 text-[#706F6C] flex-shrink-0" />
+                              <span className="truncate">{task.customer_id.name}</span>
                             </div>
-                          ) : (
-                            <span className="text-[10px] text-[#706F6C]/60">No due date</span>
                           )}
 
-                          <div className="flex items-center gap-1 text-[10px] font-medium text-[#1A1A1A]">
-                            <div className="w-4 h-4 rounded-full bg-[#2D3A2D] text-white text-[8px] font-bold flex items-center justify-center">
-                              {task.assigned_to?.name?.charAt(0) || 'U'}
+                          <div className="flex items-center justify-between gap-2 pt-1">
+                            {task.due_date ? (
+                              <div
+                                className={`flex items-center gap-1 text-[10px] font-bold ${
+                                  isPastDue ? 'text-rose-700' : 'text-[#706F6C]'
+                                }`}
+                              >
+                                <Calendar className="w-3 h-3" />
+                                <span>
+                                  {isPastDue ? 'Overdue: ' : 'Due: '}
+                                  {new Date(task.due_date).toLocaleDateString()}
+                                </span>
+                              </div>
+                            ) : (
+                              <span className="text-[10px] text-[#706F6C]/60">No due date</span>
+                            )}
+
+                            <div className="flex items-center gap-1 text-[10px] font-medium text-[#1A1A1A]">
+                              <div className="w-4 h-4 rounded-full bg-[#2D3A2D] text-white text-[8px] font-bold flex items-center justify-center">
+                                {task.assigned_to?.name?.charAt(0) || 'U'}
+                              </div>
+                              <span className="truncate max-w-[80px]">
+                                {task.assigned_to?.name || 'Unassigned'}
+                              </span>
                             </div>
-                            <span className="truncate max-w-[80px]">
-                              {task.assigned_to?.name || 'Unassigned'}
-                            </span>
                           </div>
                         </div>
-                      </div>
 
-                      {/* Move to next stage button */}
-                      {col.nextStatus && (
-                        <button
-                          type="button"
-                          onClick={() => handleToggleStatus(task._id, col.nextStatus)}
-                          className="w-full mt-2 py-1.5 px-3 rounded-xl bg-[#F5F3EF] hover:bg-[#2D3A2D] text-[#1A1A1A] hover:text-white text-[11px] font-bold transition flex items-center justify-center gap-1.5"
-                        >
-                          <span>{col.nextLabel}</span>
-                          <ArrowRight className="w-3 h-3" />
-                        </button>
-                      )}
-                    </div>
-                  ))
+                        {/* Move to next stage button */}
+                        {col.nextStatus && (
+                          <button
+                            type="button"
+                            onClick={() => handleToggleStatus(task._id, col.nextStatus)}
+                            className="w-full mt-2 py-1.5 px-3 rounded-xl bg-[#F5F3EF] hover:bg-[#2D3A2D] text-[#1A1A1A] hover:text-white text-[11px] font-bold transition flex items-center justify-center gap-1.5"
+                          >
+                            <span>{col.nextLabel}</span>
+                            <ArrowRight className="w-3 h-3" />
+                          </button>
+                        )}
+                      </div>
+                    );
+                  })
                 ) : (
                   <div className="p-8 text-center border border-dashed border-[#E5E2DC] rounded-2xl">
                     <p className="text-xs text-[#706F6C]/60 font-medium">No tasks in this stage</p>
@@ -508,7 +591,7 @@ const TasksPage = () => {
           ))}
         </div>
       ) : (
-        /* GRID VIEW (IMPROVED MODERN CARDS) */
+        /* GRID VIEW: TIP 1 (Overdue Highlighting) + TIP 2 (Three-Dot Action Menu & Anchored CTA) */
         filteredTasks.length > 0 ? (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
             {filteredTasks.map((task) => {
@@ -524,53 +607,123 @@ const TasksPage = () => {
                 new Date(task.due_date) < new Date() &&
                 task.status !== 'completed';
 
+              const isActionMenuOpen = activeActionMenuId === task._id;
+
               return (
                 <div
                   key={task._id}
-                  className="bg-white border border-[#E5E2DC] rounded-[24px] p-5 shadow-xs hover:shadow-md hover:border-[#2D3A2D] transition flex flex-col justify-between group"
+                  className={`rounded-[24px] p-5 shadow-xs hover:shadow-md transition flex flex-col justify-between group relative ${
+                    isPastDue
+                      ? 'bg-rose-50/15 border-2 border-rose-300 ring-1 ring-rose-400/20 hover:border-rose-400'
+                      : 'bg-white border border-[#E5E2DC] hover:border-[#2D3A2D]'
+                  }`}
                 >
                   <div className="space-y-3">
-                    {/* Card Top: Status & Action Buttons */}
+                    {/* Card Top: Status Pills & Tip 2 (Three-Dot Floating Action Menu) */}
                     <div className="flex items-center justify-between gap-2">
-                      <span
-                        className={`px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider border ${statusClass}`}
-                      >
-                        {task.status.replace('_', ' ')}
-                      </span>
+                      <div className="flex items-center gap-1.5 flex-wrap">
+                        {/* Standard Status Pill */}
+                        <span
+                          className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider border ${statusClass}`}
+                        >
+                          {task.status.replace('_', ' ')}
+                        </span>
 
-                      <div className="flex items-center gap-1">
-                        {task.status !== 'completed' && (
-                          <button
-                            onClick={() => handleToggleStatus(task._id, 'completed')}
-                            className="p-1.5 text-emerald-700 hover:bg-emerald-50 rounded-lg transition"
-                            title="Mark as Completed"
-                          >
-                            <CheckCircle className="w-4 h-4" />
-                          </button>
+                        {/* Tip 1: Overdue Urgent Status Pill */}
+                        {isPastDue && (
+                          <span className="px-2.5 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider bg-rose-100 text-rose-900 border border-rose-300 shadow-2xs flex items-center gap-1 animate-pulse">
+                            <AlertTriangle className="w-2.5 h-2.5 text-rose-700" />
+                            <span>Overdue</span>
+                          </span>
                         )}
+                      </div>
+
+                      {/* Tip 2: Streamlined Floating Three-Dot Menu (...) */}
+                      <div className="relative">
                         <button
-                          onClick={() => {
-                            setFormTask(task);
-                            setIsFormOpen(true);
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setActiveActionMenuId(isActionMenuOpen ? null : task._id);
                           }}
-                          className="p-1.5 text-[#706F6C] hover:text-[#2D3A2D] hover:bg-[#F5F3EF] rounded-lg transition"
-                          title="Edit Task"
+                          className="task-action-trigger w-7 h-7 rounded-xl border border-[#E5E2DC] bg-[#FAF9F5] hover:bg-[#F5F3EF] flex items-center justify-center text-[#706F6C] hover:text-[#1A1A1A] transition shadow-2xs"
+                          title="Task actions"
                         >
-                          <Edit2 className="w-4 h-4" />
+                          <MoreHorizontal className="w-4 h-4" />
                         </button>
-                        <button
-                          onClick={() => setDeleteId(task._id)}
-                          className="p-1.5 text-[#706F6C] hover:text-[#9B5A46] hover:bg-[#9B5A46]/10 rounded-lg transition"
-                          title="Delete Task"
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </button>
+
+                        {/* Dropdown Menu */}
+                        {isActionMenuOpen && (
+                          <div className="task-action-dropdown absolute right-0 top-8 z-30 w-44 bg-white border border-[#E5E2DC] rounded-2xl shadow-xl p-1.5 space-y-0.5 animate-scaleIn">
+                            {task.status !== 'completed' && (
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  handleToggleStatus(task._id, 'completed');
+                                  setActiveActionMenuId(null);
+                                }}
+                                className="w-full text-left px-3 py-2 text-xs font-semibold text-emerald-800 hover:bg-emerald-50 rounded-xl flex items-center gap-2 transition"
+                              >
+                                <CheckCircle className="w-3.5 h-3.5 text-emerald-600" />
+                                <span>Mark Completed</span>
+                              </button>
+                            )}
+
+                            {task.status === 'completed' && (
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  handleToggleStatus(task._id, 'pending');
+                                  setActiveActionMenuId(null);
+                                }}
+                                className="w-full text-left px-3 py-2 text-xs font-semibold text-amber-800 hover:bg-amber-50 rounded-xl flex items-center gap-2 transition"
+                              >
+                                <Clock className="w-3.5 h-3.5 text-amber-600" />
+                                <span>Reopen Task</span>
+                              </button>
+                            )}
+
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setFormTask(task);
+                                setIsFormOpen(true);
+                                setActiveActionMenuId(null);
+                              }}
+                              className="w-full text-left px-3 py-2 text-xs font-semibold text-[#1A1A1A] hover:bg-[#F5F3EF] rounded-xl flex items-center gap-2 transition"
+                            >
+                              <Edit2 className="w-3.5 h-3.5 text-[#706F6C]" />
+                              <span>Edit Task Details</span>
+                            </button>
+
+                            <div className="border-t border-[#E5E2DC]/80 my-1" />
+
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setDeleteId(task._id);
+                                setActiveActionMenuId(null);
+                              }}
+                              className="w-full text-left px-3 py-2 text-xs font-semibold text-rose-700 hover:bg-rose-50 rounded-xl flex items-center gap-2 transition"
+                            >
+                              <Trash2 className="w-3.5 h-3.5 text-rose-600" />
+                              <span>Delete Task</span>
+                            </button>
+                          </div>
+                        )}
                       </div>
                     </div>
 
                     {/* Title & Description */}
                     <div>
-                      <h3 className="font-bold text-base text-[#1A1A1A] leading-snug">
+                      <h3
+                        onClick={() => {
+                          setFormTask(task);
+                          setIsFormOpen(true);
+                        }}
+                        className="font-bold text-base text-[#1A1A1A] leading-snug cursor-pointer hover:text-[#2D3A2D] transition"
+                        title="Click to view/edit task"
+                      >
                         {task.title}
                       </h3>
                       <p className="text-xs text-[#706F6C] mt-1.5 line-clamp-3 leading-relaxed">
@@ -579,16 +732,22 @@ const TasksPage = () => {
                     </div>
                   </div>
 
-                  {/* Card Bottom: Metadata */}
+                  {/* Card Bottom: Metadata & Anchored Primary CTA */}
                   <div className="mt-5 pt-3.5 border-t border-[#E5E2DC] space-y-2.5">
-                    {/* Due Date */}
-                    <div className="flex items-center justify-between text-xs">
+                    {/* Due Date Row & Primary CTA */}
+                    <div className="flex items-center justify-between text-xs gap-2">
                       <div
-                        className={`inline-flex items-center gap-1.5 text-[11px] font-semibold ${
-                          isPastDue ? 'text-red-600' : 'text-[#706F6C]'
+                        className={`inline-flex items-center gap-1.5 text-[11px] font-bold px-2.5 py-1 rounded-lg border ${
+                          isPastDue
+                            ? 'text-rose-800 bg-rose-100/80 border-rose-300'
+                            : 'text-[#706F6C] bg-[#FAF9F5] border-[#E5E2DC]'
                         }`}
                       >
-                        <Calendar className="w-3.5 h-3.5" />
+                        <Calendar
+                          className={`w-3.5 h-3.5 ${
+                            isPastDue ? 'text-rose-600' : 'text-[#706F6C]'
+                          }`}
+                        />
                         <span>
                           {task.due_date
                             ? `${isPastDue ? 'Overdue: ' : 'Due: '} ${new Date(
@@ -598,12 +757,12 @@ const TasksPage = () => {
                         </span>
                       </div>
 
-                      {/* Advance Stage Quick Action */}
+                      {/* Clearly Anchored Primary CTA */}
                       {task.status === 'pending' && (
                         <button
                           type="button"
                           onClick={() => handleToggleStatus(task._id, 'in_progress')}
-                          className="text-[10px] font-bold text-blue-700 hover:underline flex items-center gap-1"
+                          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-[#2D3A2D] hover:bg-[#3D4F3D] text-white text-xs font-bold transition shadow-2xs hover:shadow-xs"
                         >
                           <span>Start Task</span>
                           <ArrowRight className="w-3 h-3" />
@@ -613,11 +772,17 @@ const TasksPage = () => {
                         <button
                           type="button"
                           onClick={() => handleToggleStatus(task._id, 'completed')}
-                          className="text-[10px] font-bold text-emerald-700 hover:underline flex items-center gap-1"
+                          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-700 hover:bg-emerald-800 text-white text-xs font-bold transition shadow-2xs hover:shadow-xs"
                         >
                           <span>Complete</span>
                           <CheckCircle className="w-3 h-3" />
                         </button>
+                      )}
+                      {task.status === 'completed' && (
+                        <span className="inline-flex items-center gap-1 text-[11px] font-bold text-emerald-800 bg-emerald-50 px-2.5 py-1 rounded-xl border border-emerald-200">
+                          <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
+                          <span>Resolved</span>
+                        </span>
                       )}
                     </div>
 
@@ -626,7 +791,7 @@ const TasksPage = () => {
                       {/* Customer Account */}
                       <div className="flex items-center gap-1.5 text-[#706F6C] truncate max-w-[150px]">
                         <Briefcase className="w-3.5 h-3.5 flex-shrink-0" />
-                        <span className="font-medium text-[#1A1A1A] truncate text-[11px]">
+                        <span className="font-semibold text-[#1A1A1A] truncate text-[11px]">
                           {task.customer_id?.name || 'Internal Project'}
                         </span>
                       </div>

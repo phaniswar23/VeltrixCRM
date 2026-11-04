@@ -2,20 +2,24 @@ import React from 'react';
 import { NavLink, Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext.jsx';
 import { useLanguage } from '../context/LanguageContext.jsx';
+import { useSidebar } from '../context/SidebarContext.jsx';
 import {
   LayoutDashboard,
   Users,
   UserCheck,
   CheckSquare,
   BarChart3,
-  Sparkles,
-  Layers,
+  Briefcase,
+  Receipt,
   ShieldCheck,
+  ChevronLeft,
+  ChevronRight,
 } from 'lucide-react';
 
 const Sidebar = () => {
   const { user, isAdmin } = useAuth();
   const { t } = useLanguage();
+  const { isCollapsed, toggleSidebar } = useSidebar();
 
   const prefix = isAdmin ? '/admin' : '/staff';
 
@@ -25,20 +29,20 @@ const Sidebar = () => {
       label: t('dashboard') || 'Dashboard',
       icon: LayoutDashboard,
     },
+    ...(isAdmin
+      ? [
+          {
+            to: '/admin/pipeline',
+            label: 'Deals Tracker',
+            icon: Briefcase,
+          },
+        ]
+      : []),
     {
       to: `${prefix}/customers`,
       label: t('customers') || 'Customers',
       icon: Users,
     },
-    ...(isAdmin
-      ? [
-          {
-            to: '/admin/staff',
-            label: t('staff') || 'Staff Management',
-            icon: UserCheck,
-          },
-        ]
-      : []),
     {
       to: `${prefix}/tasks`,
       label: t('tasks') || 'Tasks',
@@ -46,6 +50,16 @@ const Sidebar = () => {
     },
     ...(isAdmin
       ? [
+          {
+            to: '/admin/invoices',
+            label: 'Invoices & Billing',
+            icon: Receipt,
+          },
+          {
+            to: '/admin/staff',
+            label: t('staff') || 'Staff Management',
+            icon: UserCheck,
+          },
           {
             to: '/admin/activity',
             label: 'Activity Logs',
@@ -61,25 +75,54 @@ const Sidebar = () => {
   ];
 
   return (
-    <aside className="w-72 bg-white flex flex-col justify-between fixed h-full z-20 border-r border-[#E5E2DC] p-6 select-none">
-      <div>
-        {/* Brand Logo */}
-        <Link to="/" className="flex items-center gap-2.5 mb-10 px-3 group">
-          <div className="w-9 h-9 bg-[#2D3A2D] rounded-xl flex items-center justify-center text-white font-bold text-lg group-hover:scale-105 group-hover:rotate-6 transition-all duration-300 shadow-md shadow-[#2D3A2D]/20">
-            V
-          </div>
-          <span className="font-bold text-xl tracking-tight text-[#1A1A1A] group-hover:text-[#2D3A2D] transition-colors">
-            Veltrix<span className="text-[#4A5D4E]">CRM</span>
-          </span>
-        </Link>
+    <aside
+      className={`bg-white flex flex-col justify-between fixed top-0 bottom-0 left-0 h-full z-30 border-r border-[#E5E2DC] select-none transition-all duration-300 ease-in-out ${
+        isCollapsed ? 'w-[72px] p-3' : 'w-72 p-5'
+      }`}
+    >
+      {/* Top Section */}
+      <div className={isCollapsed ? 'overflow-visible' : 'overflow-y-auto overflow-x-hidden'}>
+        {/* Brand Header */}
+        <div
+          className={`flex items-center mb-6 transition-all duration-300 ${
+            isCollapsed ? 'justify-center' : 'px-2'
+          }`}
+        >
+          <Link
+            to={`${prefix}/dashboard`}
+            className="flex items-center gap-2.5 group relative cursor-pointer"
+            title=""
+          >
+            <div className="w-10 h-10 bg-[#2D3A2D] rounded-xl flex items-center justify-center text-white font-bold text-lg group-hover:scale-105 group-hover:rotate-3 transition-all duration-300 shadow-md shadow-[#2D3A2D]/20 shrink-0">
+              V
+            </div>
+            {!isCollapsed && (
+              <span className="font-bold text-xl tracking-tight text-[#1A1A1A] group-hover:text-[#2D3A2D] transition-colors whitespace-nowrap animate-in fade-in duration-200">
+                Veltrix<span className="text-[#4A5D4E]">CRM</span>
+              </span>
+            )}
 
-        {/* Menu Title */}
-        <div className="space-y-1.5">
-          <p className="text-[10px] font-bold text-[#706F6C] uppercase tracking-[0.2em] mb-4 mt-6 px-4 opacity-50">
+            {/* Smooth Brand Flyout Pill when collapsed on hover */}
+            {isCollapsed && (
+              <div className="absolute left-full ml-3 top-1/2 -translate-y-1/2 px-3.5 py-1.5 bg-[#2D3A2D] text-white rounded-xl shadow-2xl flex items-center gap-1.5 whitespace-nowrap z-50 pointer-events-none opacity-0 group-hover:opacity-100 -translate-x-2 group-hover:translate-x-0 transition-all duration-200 ease-out border border-white/10">
+                <span className="font-black text-sm tracking-tight">
+                  Veltrix<span className="text-emerald-400 font-medium">CRM</span>
+                </span>
+                <div className="absolute right-full top-1/2 -translate-y-1/2 border-[5px] border-transparent border-r-[#2D3A2D]"></div>
+              </div>
+            )}
+          </Link>
+        </div>
+
+        {/* Section Heading (only when expanded) */}
+        {!isCollapsed && (
+          <p className="text-[10px] font-bold text-[#706F6C] uppercase tracking-[0.2em] mb-3 px-3 opacity-50 animate-in fade-in duration-200">
             {t('main_menu')}
           </p>
+        )}
 
-          {/* Navigation Links */}
+        {/* Navigation Items (Showing logos/icons always with hover flyouts in collapsed mode) */}
+        <div className="space-y-1.5">
           {navItems.map((item) => {
             const Icon = item.icon;
             return (
@@ -87,52 +130,82 @@ const Sidebar = () => {
                 key={item.to}
                 to={item.to}
                 className={({ isActive }) =>
-                  `nav-item-veltrix ${isActive ? 'active' : ''}`
+                  `flex items-center rounded-xl text-xs font-semibold transition-all duration-200 relative group cursor-pointer ${
+                    isCollapsed
+                      ? 'justify-center w-11 h-11 mx-auto'
+                      : 'gap-3 px-3.5 py-2.5'
+                  } ${
+                    isActive
+                      ? 'bg-[#2D3A2D] text-white shadow-sm font-bold'
+                      : 'text-[#706F6C] hover:text-[#1A1A1A] hover:bg-[#F5F3EF]'
+                  }`
                 }
               >
-                <Icon className="w-5 h-5 flex-shrink-0" />
-                <span>{item.label}</span>
+                {({ isActive }) => (
+                  <>
+                    <Icon className="w-5 h-5 shrink-0 transition-transform duration-200 group-hover:scale-110" />
+                    {!isCollapsed && (
+                      <span className="truncate whitespace-nowrap animate-in fade-in duration-150">
+                        {item.label}
+                      </span>
+                    )}
+
+                    {/* Smooth Floating Pill when collapsed on hover */}
+                    {isCollapsed && (
+                      <div className="absolute left-full ml-3 top-1/2 -translate-y-1/2 px-3 py-1.5 bg-[#1A1A1A] text-white rounded-xl shadow-xl flex items-center gap-1.5 whitespace-nowrap z-50 pointer-events-none opacity-0 group-hover:opacity-100 -translate-x-2 group-hover:translate-x-0 transition-all duration-200 ease-out font-bold text-xs tracking-wide">
+                        <span>{item.label}</span>
+                        <div className="absolute right-full top-1/2 -translate-y-1/2 border-[5px] border-transparent border-r-[#1A1A1A]"></div>
+                      </div>
+                    )}
+                  </>
+                )}
               </NavLink>
             );
           })}
         </div>
       </div>
 
-      {/* Bottom Section: Staff Profile or Admin Plan Link */}
-      <div className="mt-auto pt-6">
-        {isAdmin ? (
-          <div className="bg-[#F5F3EF] p-5 rounded-[24px] relative overflow-hidden border border-[#E5E2DC]">
-            <div className="flex items-center gap-1.5 mb-1 text-[#2D3A2D]">
-              <Sparkles className="w-3.5 h-3.5 text-[#9B5A46]" />
-              <h4 className="font-bold text-xs">Workspace Plan</h4>
-            </div>
-            <p className="text-[10px] text-[#706F6C] mb-3 leading-relaxed">
-              Manage your subscription and team features.
-            </p>
-            <Link
-              to="/pricing"
-              className="w-full bg-[#2D3A2D] text-white text-[10px] font-bold py-2.5 rounded-xl hover:opacity-90 transition block text-center shadow-sm"
-            >
-              View Plans
-            </Link>
-          </div>
-        ) : (
-          <div className="bg-[#F5F3EF] p-4 rounded-[24px] border border-[#E5E2DC] flex items-center gap-3">
-            <div className="w-10 h-10 rounded-2xl bg-[#2D3A2D] text-white flex items-center justify-center font-bold text-sm shadow-xs shrink-0">
-              {user?.name?.charAt(0) || 'S'}
-            </div>
-            <div className="min-w-0 flex-1">
-              <div className="flex items-center gap-1.5">
-                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 shrink-0"></span>
-                <h4 className="font-bold text-xs text-[#1A1A1A] truncate">{user?.name || 'Staff User'}</h4>
+      {/* Bottom Section: Dedicated Big Arrow Button centered, no words, button click only */}
+      <div className="mt-auto pt-3 border-t border-[#E5E2DC]/80 overflow-visible">
+        <div className="space-y-3">
+          {/* User profile row when expanded */}
+          {!isCollapsed && (
+            <div className="flex items-center gap-2.5 px-1 animate-in fade-in duration-200">
+              <div className="w-8 h-8 rounded-lg bg-[#F5F3EF] border border-[#E5E2DC] text-[#2D3A2D] flex items-center justify-center font-bold text-xs shrink-0 shadow-xs">
+                {user?.name?.charAt(0) || 'U'}
               </div>
-              <p className="text-[10px] text-[#706F6C] truncate">{user?.email}</p>
-              <span className="inline-block mt-1 text-[9px] font-bold uppercase tracking-wider text-[#2D3A2D] bg-[#2D3A2D]/10 px-2 py-0.5 rounded">
-                Staff Portal
-              </span>
+              <div className="min-w-0 flex-1">
+                <p className="text-xs font-bold text-[#1A1A1A] truncate">{user?.name}</p>
+                <p className="text-[10px] text-[#706F6C] uppercase tracking-wider">
+                  {isAdmin ? 'Admin' : 'Staff'}
+                </p>
+              </div>
             </div>
+          )}
+
+          {/* Big Centered Arrow Button in VeltrixCRM Color (#2D3A2D), No Text */}
+          <div className="relative group">
+            <button
+              onClick={toggleSidebar}
+              className={`rounded-xl bg-[#2D3A2D] hover:bg-[#3D4F3D] text-white flex items-center justify-center shadow-md hover:scale-[1.05] active:scale-95 transition-all cursor-pointer ${
+                !isCollapsed ? 'w-full h-11' : 'w-11 h-11 mx-auto'
+              }`}
+            >
+              {isCollapsed ? (
+                <ChevronRight className="w-6 h-6 text-white stroke-[2.5]" />
+              ) : (
+                <ChevronLeft className="w-6 h-6 text-white stroke-[2.5]" />
+              )}
+            </button>
+
+            {isCollapsed && (
+              <div className="absolute left-full ml-3 top-1/2 -translate-y-1/2 px-3 py-1.5 bg-[#2D3A2D] text-white rounded-xl shadow-xl flex items-center gap-1.5 whitespace-nowrap z-50 pointer-events-none opacity-0 group-hover:opacity-100 -translate-x-2 group-hover:translate-x-0 transition-all duration-200 ease-out font-bold text-xs tracking-wide">
+                <span>Expand Sidebar</span>
+                <div className="absolute right-full top-1/2 -translate-y-1/2 border-[5px] border-transparent border-r-[#2D3A2D]"></div>
+              </div>
+            )}
           </div>
-        )}
+        </div>
       </div>
     </aside>
   );

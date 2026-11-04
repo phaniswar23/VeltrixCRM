@@ -64,13 +64,13 @@ const AIChatWidget = () => {
       {!isOpen && (
         <div
           onClick={() => setIsOpen(true)}
-          className="fixed bottom-8 right-8 w-16 h-16 rounded-2xl bg-[#2D3A2D] text-white flex items-center justify-center cursor-pointer shadow-2xl hover:-translate-y-1 hover:shadow-[#2D3A2D]/30 transition-all z-50 group"
+          className="fixed bottom-6 right-6 w-12 h-12 rounded-2xl bg-[#2D3A2D] text-white flex items-center justify-center cursor-pointer shadow-xl hover:scale-105 transition-all z-40 group"
           title="Open Veltrix AI Assistant"
         >
-          <span className="text-2xl font-bold group-hover:scale-110 transition-transform">
+          <span className="text-lg font-bold group-hover:scale-110 transition-transform">
             V
           </span>
-          <div className="absolute -top-1 -right-1 w-3.5 h-3.5 bg-[#9B5A46] rounded-full border-2 border-white animate-pulse"></div>
+          <div className="absolute -top-0.5 -right-0.5 w-3 h-3 bg-emerald-500 rounded-full border-2 border-white"></div>
         </div>
       )}
 

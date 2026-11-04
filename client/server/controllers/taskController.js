@@ -51,7 +51,7 @@ export const getTaskById = async (req, res) => {
 
 export const createTask = async (req, res) => {
   try {
-    const { title, description, assigned_to, customer_id, status, due_date } = req.body;
+    const { title, description, assigned_to, customer_id, status, due_date, priority } = req.body;
 
     if (!title) {
       return res.status(400).json({ message: 'Task title is required' });
@@ -66,6 +66,7 @@ export const createTask = async (req, res) => {
       assigned_to: finalAssignedTo,
       customer_id: customer_id || null,
       status: status || 'pending',
+      priority: priority || 'medium',
       due_date: due_date || null,
     });
 
@@ -104,7 +105,7 @@ export const createTask = async (req, res) => {
 
 export const updateTask = async (req, res) => {
   try {
-    const { title, description, assigned_to, customer_id, status, due_date } = req.body;
+    const { title, description, assigned_to, customer_id, status, due_date, priority } = req.body;
     const task = await Task.findById(req.params.id);
 
     if (!task) {
@@ -115,6 +116,7 @@ export const updateTask = async (req, res) => {
     if (description !== undefined) task.description = description.trim();
     if (customer_id !== undefined) task.customer_id = customer_id || null;
     if (status) task.status = status;
+    if (priority) task.priority = priority;
     if (due_date !== undefined) task.due_date = due_date || null;
 
     // Only admin can reassign task to another staff member

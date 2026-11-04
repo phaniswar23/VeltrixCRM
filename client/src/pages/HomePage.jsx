@@ -561,8 +561,8 @@ const HomePage = () => {
                       <h4 className="text-xs font-bold uppercase tracking-widest text-[#1A1A1A] mb-1">
                         {t('contact_email') || 'Contact Email'}
                       </h4>
-                      <a href="mailto:veltrixcrm@gmail.com" className="text-sm text-[#2D3A2D] font-bold hover:underline transition-all">
-                        veltrixcrm@gmail.com
+                      <a href="mailto:phaniswarjanyavula@gmail.com" className="text-sm text-[#2D3A2D] font-bold hover:underline transition-all">
+                        phaniswarjanyavula@gmail.com
                       </a>
                     </div>
                   </div>
@@ -576,12 +576,12 @@ const HomePage = () => {
                         {t('direct_line') || 'Direct Line'}
                       </h4>
                       <a
-                        href="https://wa.me/917207674897"
+                        href="https://wa.me/919989883459"
                         target="_blank"
                         rel="noopener noreferrer"
                         className="text-sm text-[#2D3A2D] font-bold hover:underline transition-all"
                       >
-                        +91 7207674897
+                        +91 9989883459
                       </a>
                     </div>
                   </div>
@@ -626,7 +626,7 @@ const HomePage = () => {
                           value={contactForm.name}
                           onChange={(e) => setContactForm({ ...contactForm, name: e.target.value })}
                           className="w-full bg-[#FBFBF9] border border-[#E5E2DC] rounded-xl px-4 py-3 outline-none focus:border-[#2D3A2D] focus:bg-white transition-all text-xs font-bold"
-                          placeholder="E.g. Marcus Vance"
+                          placeholder="E.g. Phaniswar"
                         />
                       </div>
                       <div>

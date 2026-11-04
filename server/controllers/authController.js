@@ -64,7 +64,18 @@ export const login = async (req, res) => {
       return res.status(400).json({ message: 'Email and password are required' });
     }
 
-    const user = await User.findOne({ email: email.toLowerCase() });
+    const inputEmail = email.toLowerCase().trim();
+    // Resolve email aliases if someone enters either new or legacy email
+    let searchEmails = [inputEmail];
+    if (inputEmail === 'aarav@veltrix.com' || inputEmail === 'staff@veltrix.com') {
+      searchEmails = ['aarav@veltrix.com', 'staff@veltrix.com'];
+    } else if (inputEmail === 'priya@veltrix.com' || inputEmail === 'sarah@veltrix.com') {
+      searchEmails = ['priya@veltrix.com', 'sarah@veltrix.com'];
+    } else if (inputEmail === 'rohan@veltrix.com' || inputEmail === 'david@veltrix.com') {
+      searchEmails = ['rohan@veltrix.com', 'david@veltrix.com'];
+    }
+
+    const user = await User.findOne({ email: { $in: searchEmails } });
     if (!user) {
       return res.status(401).json({ message: 'Invalid email or password' });
     }
@@ -72,6 +83,18 @@ export const login = async (req, res) => {
     const isMatch = await user.matchPassword(password);
     if (!isMatch) {
       return res.status(401).json({ message: 'Invalid email or password' });
+    }
+
+    // Auto-update Western staff names and emails to Indian identities
+    if (user.email === 'staff@veltrix.com' || user.name === 'Aarav Sharma') {
+      user.name = 'Aarav Sharma';
+      user.email = 'aarav@veltrix.com';
+    } else if (user.email === 'sarah@veltrix.com' || user.name === 'Priya Patel') {
+      user.name = 'Priya Patel';
+      user.email = 'priya@veltrix.com';
+    } else if (user.email === 'david@veltrix.com' || user.name === 'Rohan Verma') {
+      user.name = 'Rohan Verma';
+      user.email = 'rohan@veltrix.com';
     }
 
     user.is_online = true;
@@ -107,6 +130,17 @@ export const getMe = async (req, res) => {
   try {
     const user = await User.findById(req.user._id).select('-password');
     if (user) {
+      // Auto-update Western staff names and emails to Indian identities
+      if (user.email === 'staff@veltrix.com' || user.name === 'Aarav Sharma') {
+        user.name = 'Aarav Sharma';
+        user.email = 'aarav@veltrix.com';
+      } else if (user.email === 'sarah@veltrix.com' || user.name === 'Priya Patel') {
+        user.name = 'Priya Patel';
+        user.email = 'priya@veltrix.com';
+      } else if (user.email === 'david@veltrix.com' || user.name === 'Rohan Verma') {
+        user.name = 'Rohan Verma';
+        user.email = 'rohan@veltrix.com';
+      }
       user.is_online = true;
       user.last_activity = new Date();
       await user.save({ validateBeforeSave: false });
