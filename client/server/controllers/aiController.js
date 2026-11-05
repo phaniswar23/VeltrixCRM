@@ -65,33 +65,42 @@ export const chat = async (req, res) => {
     const apiKey = process.env.GEMINI_API_KEY;
 
     if (apiKey) {
-      try {
-        const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`;
-        const response = await axios.post(
-          url,
-          {
-            contents: [
-              {
-                parts: [{ text: message }],
-              },
-            ],
-            systemInstruction: {
-              parts: [
+      const candidateModels = [
+        'gemini-3.5-flash-lite',
+        'gemini-3.1-flash-lite',
+        'gemini-3.5-flash',
+        'gemini-3.8-flash',
+      ];
+
+      for (const model of candidateModels) {
+        try {
+          const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
+          const response = await axios.post(
+            url,
+            {
+              contents: [
                 {
-                  text: 'You are Veltrix AI, the intelligent virtual assistant built into VeltrixCRM. VeltrixCRM is a premium, high-end SaaS CRM platform for orchestrating customer operations, managing lead pipelines, task flows, and operational analytics. The Founder and CEO of VeltrixCRM is Phaniswar. Keep your responses highly professional, clean, helpful, concise, and focused on assisting the staff or administrator with CRM capabilities.',
+                  parts: [{ text: message }],
                 },
               ],
+              systemInstruction: {
+                parts: [
+                  {
+                    text: 'You are Veltrix AI, the intelligent virtual assistant built into VeltrixCRM. VeltrixCRM is a premium, high-end SaaS CRM platform for orchestrating customer operations, managing lead pipelines, task flows, and operational analytics. The Founder and CEO of VeltrixCRM is Phaniswar. Keep your responses highly professional, clean, helpful, concise, and focused on assisting the staff or administrator with CRM capabilities.',
+                  },
+                ],
+              },
             },
-          },
-          { timeout: 7000 }
-        );
+            { timeout: 7000 }
+          );
 
-        const reply = response.data?.candidates?.[0]?.content?.parts?.[0]?.text;
-        if (reply) {
-          return res.json({ reply });
+          const reply = response.data?.candidates?.[0]?.content?.parts?.[0]?.text;
+          if (reply) {
+            return res.json({ reply });
+          }
+        } catch (geminiErr) {
+          console.warn(`[Veltrix AI] ${model} attempt failed: ${geminiErr.response?.data?.error?.message || geminiErr.message}`);
         }
-      } catch (geminiErr) {
-        console.warn('[Veltrix AI] Gemini API call skipped or errored; falling back to contextual AI reply');
       }
     }
 
