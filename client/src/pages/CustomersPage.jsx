@@ -28,6 +28,7 @@ import {
   AlertTriangle,
   Sparkles,
   Check,
+  HelpCircle,
 } from 'lucide-react';
 
 const CustomersPage = () => {
@@ -415,7 +416,18 @@ const CustomersPage = () => {
             <thead>
               <tr className="bg-[#FAF9F5] border-b border-[#E5E2DC] text-[10px] font-bold text-[#706F6C] uppercase tracking-wider">
                 <th className="px-6 py-4">Customer & Organization</th>
-                <th className="px-6 py-4">Lead Score</th>
+                <th className="px-6 py-4">
+                  <div className="inline-flex items-center gap-1.5">
+                    <span>Lead Score</span>
+                    <div className="relative group cursor-pointer inline-flex items-center">
+                      <HelpCircle className="w-3.5 h-3.5 text-[#706F6C] hover:text-[#2D3A2D] transition-colors" />
+                      <div className="absolute left-0 top-full mt-1.5 hidden group-hover:flex flex-col w-64 p-2.5 bg-[#1A1A1A] text-white text-[10px] font-normal normal-case tracking-normal rounded-xl shadow-2xl z-50 pointer-events-none border border-white/10">
+                        <span className="font-bold text-emerald-400 mb-0.5">What is Lead Score?</span>
+                        <span>A 0–100 rating measuring sales readiness: High (80–100), Medium (50–79), and Low (below 50).</span>
+                      </div>
+                    </div>
+                  </div>
+                </th>
                 <th className="px-6 py-4">Email</th>
                 <th className="px-6 py-4">Direct WhatsApp</th>
                 <th className="px-6 py-4">Status</th>
@@ -443,10 +455,10 @@ const CustomersPage = () => {
                   const score = c.lead_score || 30;
                   const isUnassigned = !c.assigned_to;
 
-                  // Tip 1: Vibrant Color-Coded Lead Scoring
-                  const isHot = score >= 80;
-                  const isWarm = score >= 50 && score < 80;
-                  const isCold = score < 50;
+                  // Vibrant Color-Coded Lead Scoring
+                  const isHigh = score >= 80;
+                  const isMedium = score >= 50 && score < 80;
+                  const isLow = score < 50;
 
                   return (
                     <tr
@@ -483,18 +495,18 @@ const CustomersPage = () => {
                         <div className="flex items-center gap-2">
                           <div
                             className={`w-14 h-2 rounded-full overflow-hidden shadow-2xs ${
-                              isHot
+                              isHigh
                                 ? 'bg-emerald-100'
-                                : isWarm
+                                : isMedium
                                 ? 'bg-amber-100'
                                 : 'bg-rose-100'
                             }`}
                           >
                             <div
                               className={`h-full rounded-full transition-all duration-500 ${
-                                isHot
+                                isHigh
                                   ? 'bg-emerald-500'
-                                  : isWarm
+                                  : isMedium
                                   ? 'bg-amber-500'
                                   : 'bg-rose-400'
                               }`}
@@ -504,9 +516,9 @@ const CustomersPage = () => {
 
                           <span
                             className={`text-[11px] font-mono font-bold ${
-                              isHot
+                              isHigh
                                 ? 'text-emerald-800'
-                                : isWarm
+                                : isMedium
                                 ? 'text-amber-800'
                                 : 'text-rose-700'
                             }`}

@@ -321,18 +321,22 @@ const AdminDashboard = () => {
             <span className="text-3xl font-extrabold text-[#1A1A1A]">
               {stats?.totalStaff || 0}
             </span>
-            {/* Informative Contextual Indicator instead of abrupt 0 Online */}
-            {(stats?.onlineStaffCount ?? 0) > 0 ? (
-              <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-800 border border-emerald-200 flex items-center gap-1.5">
-                <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                <span>{stats.onlineStaffCount} Online Now</span>
-              </span>
-            ) : (
-              <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-[#FAF9F5] text-[#2D3A2D] border border-[#E5E2DC] flex items-center gap-1.5">
-                <div className="w-1.5 h-1.5 rounded-full bg-[#2D3A2D]/60" />
-                <span>All Reps Active</span>
-              </span>
-            )}
+            <span
+              className={`text-[10px] font-bold px-2.5 py-0.5 rounded-full border flex items-center gap-1.5 ${
+                (stats?.onlineStaffCount ?? 0) > 0
+                  ? 'bg-emerald-50 text-emerald-800 border-emerald-200'
+                  : 'bg-[#FAF9F5] text-[#706F6C] border-[#E5E2DC]'
+              }`}
+            >
+              <div
+                className={`w-1.5 h-1.5 rounded-full ${
+                  (stats?.onlineStaffCount ?? 0) > 0
+                    ? 'bg-emerald-500 animate-pulse'
+                    : 'bg-[#706F6C]/50'
+                }`}
+              />
+              <span>{stats?.onlineStaffCount ?? 0} Online</span>
+            </span>
           </div>
           <p className="text-[11px] text-[#706F6C]">Assigned workspace team</p>
         </div>

@@ -22,6 +22,7 @@ import {
   Receipt,
   Trash2,
   CheckSquare,
+  HelpCircle,
 } from 'lucide-react';
 
 const CustomerDetailsModal = ({ customer, onClose, onCustomerUpdated }) => {
@@ -175,9 +176,16 @@ const CustomerDetailsModal = ({ customer, onClose, onCustomerUpdated }) => {
                   {customer.status}
                 </span>
                 <span
-                  className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider border ${leadScoreColor}`}
+                  className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider border flex items-center gap-1.5 ${leadScoreColor}`}
                 >
-                  Score: {leadScore}/100
+                  <span>Score: {leadScore}/100</span>
+                  <span className="relative group cursor-pointer inline-flex items-center">
+                    <HelpCircle className="w-3 h-3 opacity-70 hover:opacity-100 transition-opacity" />
+                    <span className="absolute left-1/2 -translate-x-1/2 top-full mt-1.5 hidden group-hover:flex flex-col w-56 p-2 bg-[#1A1A1A] text-white text-[9px] font-normal normal-case tracking-normal rounded-lg shadow-xl z-50 pointer-events-none border border-white/10">
+                      <span className="font-bold text-emerald-400 mb-0.5">What is Lead Score?</span>
+                      <span>Sales readiness rating: High (80–100), Medium (50–79), Low (&lt;50).</span>
+                    </span>
+                  </span>
                 </span>
               </div>
               <p className="text-xs text-[#706F6C] mt-0.5 flex items-center gap-2">
